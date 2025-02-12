@@ -72,11 +72,11 @@ async def chat_endpoint(
         # 1. 获取对话历史
         logger.info(f"获取对话{conversation_id}的历史消息")
         history = await mock_get_conversation_messages(conversation_id, request.user_id)
-        
+
         # 2. 生成AI回复
         logger.info(f"正在为用户{request.user_id}生成回复")
         ai_response = await mock_generate_response(request.message, history)
-        
+
         # 3. 异步保存消息
         logger.info("异步保存消息")
         background_tasks.add_task(
@@ -91,10 +91,10 @@ async def chat_endpoint(
             content=ai_response,
             is_user=False
         )
-        
+
         # 4. 返回响应
         return {"response": ai_response}
-        
+
     except HTTPException as e:
         # 重新抛出HTTP异常
         raise e
@@ -123,3 +123,11 @@ async def health_check():
     健康检查API，用于监控服务状态
     """
     return {"status": "healthy"}
+
+
+@app.get("/")
+async def root():
+    """
+    根路径，用于测试
+    """
+    return {"message": "Hello World!"}

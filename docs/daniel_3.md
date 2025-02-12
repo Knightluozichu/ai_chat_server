@@ -160,7 +160,7 @@ def test_chat_endpoint_success(monkeypatch):
 1. Dockerfile 编写
 •基础镜像：选择官方 Python 3.10（或其他适合版本）的 slim 镜像。
 •安装依赖：复制 requirements.txt，执行 pip install；复制项目代码到容器中。
-•启动命令：使用 uvicorn 启动 FastAPI 服务，监听 0.0.0.0:8000。
+•启动命令：使用 uvicorn 启动 FastAPI 服务，监听 0.0.0.0:3000。
 •示例 Dockerfile：
 
 # 使用官方 Python 3.10 slim 镜像
@@ -179,20 +179,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制项目代码
 COPY . .
 
-# 暴露端口（默认 uvicorn 使用 8000 端口）
-EXPOSE 8000
+# 暴露端口（默认 uvicorn 使用 3000 端口）
+EXPOSE 3000
 
 # 设置环境变量（可以在运行容器时通过 -e 传入，或在 .env 文件中设置）
 ENV PYTHONUNBUFFERED=1
 
 # 启动 FastAPI 服务
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000"]
 
 2. 部署文档
 •环境变量：整理所有必需的环境变量（如 SUPABASE_URL、SUPABASE_SERVICE_KEY、OPENAI_API_KEY 等），写入 .env 文件或在部署平台配置。
 •构建与运行：
 1.使用命令 docker build -t chat-service . 构建镜像。
-2.使用命令 docker run -d -p 8000:8000 --env-file .env chat-service 运行容器。
+2.使用命令 docker run -d -p 3000:3000 --env-file .env chat-service 运行容器。
 •CI/CD 集成：可考虑使用 GitHub Actions、GitLab CI 或其他平台，实现自动化测试与构建部署流程。
 
 总结

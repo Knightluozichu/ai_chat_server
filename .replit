@@ -1,0 +1,11 @@
+modules = [ "python-3.10" , "docker"]
+run = "uvicorn app.main:app --host=0.0.0.0 --port=3000"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[deployment]
+deploymentTarget = "scheduled"
+run = ["sh", "-c", "uvicorn app.main:app --host=0.0.0.0 --port=3000"]
+
