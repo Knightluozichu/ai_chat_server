@@ -1,11 +1,16 @@
 """
 配置模块：使用 pydantic 的 BaseSettings 进行配置管理，
 可自动从 .env 文件加载环境变量，确保类型安全。
+同时支持从系统环境变量覆盖配置，适应不同部署环境。
 """
 from pydantic_settings import BaseSettings
-
 from dotenv import load_dotenv
+import logging
 import os
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     # Supabase 相关配置
@@ -14,7 +19,7 @@ class Settings(BaseSettings):
     
     # OpenAI 相关配置
     OPENAI_API_KEY: str
-    MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在 .env 中覆盖
+    MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在环境变量中覆盖
 
     class Config:
         # 指定 .env 文件路径，便于本地和容器环境统一配置
@@ -24,37 +29,53 @@ class Settings(BaseSettings):
 # 全局配置实例，后续其他模块可直接导入 settings 使用
 settings = Settings()
 
+def mask_secret(value: str) -> str:
+    """
+    对敏感信息进行脱敏处理：仅显示前4位和后4位字符，中间用*替代
+    """
+    if not value or len(value) <= 8:
+        return "***"
+    return f"{value[:4]}...{value[-4:]}"
 
-# 获取部署环境中的SUPABASE_URL
+# 获取并尝试使用系统环境变量（生产环境优先）
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 if SUPABASE_URL:
     settings.SUPABASE_URL = SUPABASE_URL
-    print(f"获取到的 SUPABASE_URL 是: {SUPABASE_URL}")
+    logger.info(f"从系统环境变量获取 SUPABASE_URL: {SUPABASE_URL}")
 else:
-    print("未找到 SUPABASE_URL 部署环境变量。")
+    logger.info(f"使用 .env 配置的 SUPABASE_URL: {settings.SUPABASE_URL}")
     
-# 获取部署环境中的SUPABASE_SERVICE_KEY
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')
 if SUPABASE_SERVICE_KEY:
     settings.SUPABASE_SERVICE_KEY = SUPABASE_SERVICE_KEY
-    print(f"获取到的 SUPABASE_SERVICE_KEY 是: {SUPABASE_SERVICE_KEY}")
+    logger.info(f"从系统环境变量获取 SUPABASE_SERVICE_KEY: {mask_secret(SUPABASE_SERVICE_KEY)}")
 else:
-    print("未找到 SUPABASE_SERVICE_KEY 部署环境变量。")
+    logger.info(f"使用 .env 配置的 SUPABASE_SERVICE_KEY: {mask_secret(settings.SUPABASE_SERVICE_KEY)}")
     
-# 获取部署环境中的OPENAI_API_KEY
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 if OPENAI_API_KEY:
     settings.OPENAI_API_KEY = OPENAI_API_KEY
-    print(f"获取到的 OPENAI_API_KEY 是: {OPENAI_API_KEY}")
+    logger.info(f"从系统环境变量获取 OPENAI_API_KEY: {mask_secret(OPENAI_API_KEY)}")
 else:
-    print("未找到 OPENAI_API_KEY 部署环境变量。")
+    logger.info(f"使用 .env 配置的 OPENAI_API_KEY: {mask_secret(settings.OPENAI_API_KEY)}")
     
-# 获取部署环境中的MODEL_NAME
 MODEL_NAME = os.environ.get('MODEL_NAME')
 if MODEL_NAME:
     settings.MODEL_NAME = MODEL_NAME
-    print(f"获取到的 MODEL_NAME 是: {MODEL_NAME}")   
+    logger.info(f"从系统环境变量获取 MODEL_NAME: {MODEL_NAME}")   
 else:
-    print("未找到 MODEL_NAME 部署环境变量。") 
+    logger.info(f"使用 .env 配置的 MODEL_NAME: {settings.MODEL_NAME}")
 
+# 验证所有必需的配置是否已设置
+required_configs = {
+    "SUPABASE_URL": settings.SUPABASE_URL,
+    "SUPABASE_SERVICE_KEY": settings.SUPABASE_SERVICE_KEY,
+    "OPENAI_API_KEY": settings.OPENAI_API_KEY,
+    "MODEL_NAME": settings.MODEL_NAME
+}
 
+for config_name, config_value in required_configs.items():
+    if not config_value:
+        raise ValueError(f"必需的配置项 {config_name} 未设置")
+    
+logger.info("所有必需的配置项已加载完成")
