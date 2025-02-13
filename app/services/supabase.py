@@ -57,8 +57,20 @@ class SupabaseService:
             return messages
 
         except Exception as e:
-            logger.error(f"获取对话消息失败: {str(e)}")
-            raise Exception(f"获取对话消息失败: {str(e)}")
+            error_data = getattr(e, 'error', {})
+            error_code = error_data.get('code', 'unknown')
+            error_message = error_data.get('message', str(e))
+            error_details = error_data.get('details', None)
+            
+            logger.error(
+                f"获取对话消息失败:\n"
+                f"错误码: {error_code}\n"
+                f"错误信息: {error_message}\n" 
+                f"详细信息: {error_details}\n"
+                f"表: conversations\n"
+                f"操作: select"
+            )
+            raise Exception(f"获取对话消息失败: 错误码={error_code}, 信息={error_message}")
 
     def save_message(self, conversation_id: str, content: str, is_user: bool):
         """
@@ -90,8 +102,20 @@ class SupabaseService:
             return result[0] if result else None
 
         except Exception as e:
-            logger.error(f"保存消息失败: {str(e)}")
-            raise Exception(f"保存消息失败: {str(e)}")
+            error_data = getattr(e, 'error', {})
+            error_code = error_data.get('code', 'unknown')
+            error_message = error_data.get('message', str(e))
+            error_details = error_data.get('details', None)
+            
+            logger.error(
+                f"保存消息失败:\n"
+                f"错误码: {error_code}\n"
+                f"错误信息: {error_message}\n"
+                f"详细信息: {error_details}\n"
+                f"表: messages\n"
+                f"操作: insert"
+            )
+            raise Exception(f"保存消息失败: 错误码={error_code}, 信息={error_message}")
 
 # 全局实例化，后续模块可直接导入使用
 supabase_service = SupabaseService()
