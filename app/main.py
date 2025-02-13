@@ -95,9 +95,9 @@ async def health_check():
     """
     return {"status": "healthy"}
 
-# @app.get("/")
-# async def root():
-#     """
-#     根路径 - 快速健康检查
-#     """
-#     return {"status": "ok"}
+@app.get("/")
+async def root():
+    """
+    根路径 - 快速健康检查
+    """
+    return {"status": "ok"}

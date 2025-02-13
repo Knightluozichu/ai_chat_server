@@ -4,12 +4,12 @@
 modules = ["python-3.10"]
 
 # 运行命令
-run = "uvicorn app.main:app --host=0.0.0.0 --port=3000"
+run = "uvicorn app.main:app --host=0.0.0.0 --port 3000"
 
 # 部署配置
 [deployment]
-deploymentTarget = "service"
-run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 80"]
+deploymentTarget = "cloudrun"
+run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 3000"]
 
 # 监听端口
 [[ports]]
