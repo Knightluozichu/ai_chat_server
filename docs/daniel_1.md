@@ -22,7 +22,7 @@
 3. 示例代码
 
 # backend/app/config.py
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Supabase 相关配置

@@ -14,7 +14,7 @@ client = TestClient(app)
 
 def run_server():
     """在后台线程中运行服务器"""
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="error")
+    uvicorn.run(app, host="127.0.0.1", port=3000, log_level="error")
 
 def test_health_check():
     """
@@ -86,7 +86,7 @@ async def test_chat_with_background_tasks():
     time.sleep(1)
     
     try:
-        async with AsyncClient(base_url="http://127.0.0.1:8000") as ac:
+        async with AsyncClient(base_url="http://127.0.0.1:3000") as ac:
             # 发送测试请求
             test_data = {
                 "user_id": "test_user",

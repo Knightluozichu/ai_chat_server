@@ -3,6 +3,7 @@
 可自动从 .env 文件加载环境变量，确保类型安全。
 """
 from pydantic_settings import BaseSettings
+
 from dotenv import load_dotenv
 import os
 
