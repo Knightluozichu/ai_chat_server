@@ -87,35 +87,19 @@ class SupabaseService:
         Raises:
             Exception: 当保存消息失败时抛出异常
         """
-        try:
-            insert_payload = {
-                "conversation_id": conversation_id,
-                "content": content,
-                "is_user": is_user
-            }
-            
-            result = self.client.table('messages') \
-                .insert(insert_payload) \
-                .execute() \
-                .data
+        insert_payload = {
+            "conversation_id": conversation_id,
+            "content": content,
+            "is_user": is_user,
+            "created_at": "now()"  # 使用服务器时间
+        }
+        
+        result = self.client.table('messages') \
+            .insert(insert_payload) \
+            .execute() \
+            .data
 
-            return result[0] if result else None
-
-        except Exception as e:
-            error_data = getattr(e, 'error', {})
-            error_code = error_data.get('code', 'unknown')
-            error_message = error_data.get('message', str(e))
-            error_details = error_data.get('details', None)
-            
-            logger.error(
-                f"保存消息失败:\n"
-                f"错误码: {error_code}\n"
-                f"错误信息: {error_message}\n"
-                f"详细信息: {error_details}\n"
-                f"表: messages\n"
-                f"操作: insert"
-            )
-            raise Exception(f"保存消息失败: 错误码={error_code}, 信息={error_message}")
+        return result[0] if result else None
 
 # 全局实例化，后续模块可直接导入使用
 supabase_service = SupabaseService()
