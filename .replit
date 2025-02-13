@@ -1,11 +1,17 @@
-modules = [ "python-3.10" , "docker"]
+# .replit 文件内容
+
+# 使用 Python 3.10
+modules = ["python-3.10"]
+
+# 运行命令
 run = "uvicorn app.main:app --host=0.0.0.0 --port=3000"
 
-[[ports]]
-localPort = 3000
-externalPort = 80
-
+# 部署配置
 [deployment]
-deploymentTarget = "scheduled"
+deploymentTarget = "cloudrun"
 run = ["sh", "-c", "uvicorn app.main:app --host=0.0.0.0 --port=3000"]
 
+# 监听端口
+[[ports]]
+localPort = 3000
+externalPort = 80  # Replit 要求外部端口必须是 443
