@@ -35,17 +35,23 @@ class SupabaseService:
             # 如果提供了user_id，先验证用户权限
             if user_id:
                 # 验证用户权限：查询 conversations 表中该对话的所有者 user_id
-                conversation = self.client.table('conversations') \
+                conversation_result = self.client.table('conversations') \
                     .select('user_id') \
                     .eq('id', conversation_id) \
-                    .single() \
-                    .execute() \
-                    .data
+                    .execute()
 
-                if not conversation:
-                    raise Exception("对话不存在")
-
-                if conversation.get('user_id') != user_id:
+                conversations = conversation_result.data
+                
+                if not conversations or len(conversations) == 0:
+                    # 如果对话不存在，创建新对话
+                    new_conversation = {
+                        'id': conversation_id,
+                        'user_id': user_id
+                    }
+                    self.client.table('conversations') \
+                        .insert(new_conversation) \
+                        .execute()
+                elif conversations[0].get('user_id') != user_id:
                     raise Exception("无权访问此对话")
 
             # 查询 messages 表，选取需要的字段，按创建时间排序
