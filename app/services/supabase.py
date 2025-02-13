@@ -42,17 +42,9 @@ class SupabaseService:
 
                 conversations = conversation_result.data
                 
-                if not conversations or len(conversations) == 0:
-                    # 如果对话不存在，创建新对话
-                    new_conversation = {
-                        'id': conversation_id,
-                        'user_id': user_id
-                    }
-                    self.client.table('conversations') \
-                        .insert(new_conversation) \
-                        .execute()
-                elif conversations[0].get('user_id') != user_id:
-                    raise Exception("无权访问此对话")
+                if conversations and len(conversations) > 0:
+                    if conversations[0].get('user_id') != user_id:
+                        raise Exception("无权访问此对话")
 
             # 查询 messages 表，选取需要的字段，按创建时间排序
             messages = self.client.table('messages') \
