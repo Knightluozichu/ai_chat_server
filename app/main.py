@@ -94,3 +94,10 @@ async def health_check():
     健康检查API，用于监控服务状态
     """
     return {"status": "healthy"}
+
+@app.get("/")
+async def root():
+  """
+  根路径
+  """
+  return {"weclome":"超级智能采购机器人"}
