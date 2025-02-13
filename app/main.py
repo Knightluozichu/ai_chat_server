@@ -80,7 +80,7 @@ async def get_chat_history(conversation_id: str):
     """
     try:
         # 获取对话历史
-        history = supabase_service.get_conversation_messages(conversation_id, None)
+        history = supabase_service.get_conversation_messages(conversation_id, NoneNoneNone)
         return history
     except Exception as e:
         logger.error(f"获取对话历史时发生错误: {str(e)}")
