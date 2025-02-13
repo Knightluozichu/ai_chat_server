@@ -97,7 +97,7 @@ async def health_check():
 
 @app.get("/")
 async def root():
-  """
-  根路径
-  """
-  return {"weclome":"超级智能采购机器人"}
+    """
+    根路径 - 快速健康检查
+    """
+    return {"status": "ok"}
