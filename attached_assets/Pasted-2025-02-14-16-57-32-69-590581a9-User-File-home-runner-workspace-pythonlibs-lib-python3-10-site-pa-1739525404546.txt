@@ -1,0 +1,104 @@
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/uvicorn/config.py", line 435, in load
+2025-02-14 16:57:32.69
+590581a9
+User
+self.loaded_app = import_from_string(self.app)
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+2025-02-14 16:57:32.69
+590581a9
+User
+module = importlib.import_module(module_str)
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/nix/store/qlb1pg370bb647nj4dhc81y2jszvciz7-python3-3.10.16/lib/python3.10/importlib/__init__.py", line 126, in import_module
+2025-02-14 16:57:32.69
+590581a9
+User
+return _bootstrap._gcd_import(name[level:], package, level)
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 1050, in _gcd_import
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 1027, in _find_and_load
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 1006, in _find_and_load_unlocked
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 688, in _load_unlocked
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 883, in exec_module
+2025-02-14 16:57:32.69
+590581a9
+User
+File "", line 241, in _call_with_frames_removed
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/app/main.py", line 11, in
+2025-02-14 16:57:32.69
+590581a9
+User
+from app.services.chat_service import chat_service
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/app/services/chat_service.py", line 103, in
+2025-02-14 16:57:32.69
+590581a9
+User
+chat_service = ChatService()
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/app/services/chat_service.py", line 28, in __init__
+2025-02-14 16:57:32.69
+590581a9
+User
+search = SerpAPIWrapper(api_key=settings.SERPAPI_API_KEY)
+2025-02-14 16:57:32.69
+590581a9
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/pydantic/main.py", line 214, in __init__
+2025-02-14 16:57:32.69
+590581a9
+User
+validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+2025-02-14 16:57:32.69
+590581a9
+User
+pydantic_core._pydantic_core.ValidationError: 1 validation error for SerpAPIWrapper
+2025-02-14 16:57:32.69
+590581a9
+User
+api_key
+2025-02-14 16:57:32.69
+590581a9
+User
+Extra inputs are not permitted [type=extra_forbidden, input_value='56b8590f3d78a033cfb4d664...5240e9d4466621ea248d853', input_type=str]
+2025-02-14 16:57:32.69
+590581a9
+User
+For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden
+2025-02-14 16:57:33.15
+590581a9
+System
+command finished with error [sh -c uvicorn app.main:app --host 0.0.0.0 --port 3000]: exit status 1
+2025-02-14 16:57:38.53
+590581a9
+System
+a port configuration was specified but the required port was never opened
