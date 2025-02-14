@@ -1,10 +1,4 @@
-"""
-配置模块：使用 pydantic 的 BaseSettings 进行配置管理，
-可自动从 .env 文件加载环境变量，确保类型安全。
-同时支持从系统环境变量覆盖配置，适应不同部署环境。
-"""
 from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
 import logging
 import os
 
@@ -13,67 +7,56 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
+    # 环境标识，"development" 表示本地开发环境，"production" 表示部署环境
+    ENVIRONMENT: str = "development"
+
     # Supabase 相关配置
     SUPABASE_URL: str
     SUPABASE_SERVICE_KEY: str  # 使用 service_role key 保证安全性
-    
+
     # OpenAI 相关配置
     OPENAI_API_KEY: str
     MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在环境变量中覆盖
-    
-    SERPAPI_API_KEY: str
 
+    # SERPAPI 相关配置
+    SERPAPI_API_KEY: str
+    SERPAPI_API_KEY = "13123123"
     class Config:
-        # 指定 .env 文件路径，便于本地和容器环境统一配置
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-# 全局配置实例，后续其他模块可直接导入 settings 使用
+# 全局配置实例，pydantic 会自动优先使用系统环境变量，未设置时则从 .env 中加载
 settings = Settings()
 
 def mask_secret(value: str) -> str:
     """
-    对敏感信息进行脱敏处理：仅显示前4位和后4位字符，中间用*替代
+    对敏感信息进行脱敏处理：仅显示前4位和后4位字符，中间用...替代
     """
     if not value or len(value) <= 8:
         return "***"
     return f"{value[:4]}...{value[-4:]}"
 
-# 获取并尝试使用系统环境变量（生产环境优先）
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-if SUPABASE_URL:
-    settings.SUPABASE_URL = SUPABASE_URL
-    logger.info(f"从系统环境变量获取 SUPABASE_URL: {SUPABASE_URL}")
-else:
-    logger.info(f"使用 .env 配置的 SUPABASE_URL: {settings.SUPABASE_URL}")
-    
-SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')
-if SUPABASE_SERVICE_KEY:
-    settings.SUPABASE_SERVICE_KEY = SUPABASE_SERVICE_KEY
-    logger.info(f"从系统环境变量获取 SUPABASE_SERVICE_KEY: {mask_secret(SUPABASE_SERVICE_KEY)}")
-else:
-    logger.info(f"使用 .env 配置的 SUPABASE_SERVICE_KEY: {mask_secret(settings.SUPABASE_SERVICE_KEY)}")
-    
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-if OPENAI_API_KEY:
-    settings.OPENAI_API_KEY = OPENAI_API_KEY
-    logger.info(f"从系统环境变量获取 OPENAI_API_KEY: {mask_secret(OPENAI_API_KEY)}")
-else:
-    logger.info(f"使用 .env 配置的 OPENAI_API_KEY: {mask_secret(settings.OPENAI_API_KEY)}")
-    
-MODEL_NAME = os.environ.get('MODEL_NAME')
-if MODEL_NAME:
-    settings.MODEL_NAME = MODEL_NAME
-    logger.info(f"从系统环境变量获取 MODEL_NAME: {MODEL_NAME}")   
-else:
-    logger.info(f"使用 .env 配置的 MODEL_NAME: {settings.MODEL_NAME}")
+def log_config_item(name: str, value: str):
+    """
+    根据 ENVIRONMENT 和 os.environ 判断配置来源，并打印日志：
+    - 若处于生产环境且系统环境变量中存在，则认为使用的是系统环境变量
+    - 否则视为使用 .env 配置
+    对于包含 KEY/API 的敏感信息，进行脱敏显示
+    """
+    # 如果设置为生产环境且系统环境变量中存在对应项，则认为来源为系统环境变量
+    if settings.ENVIRONMENT.lower() == "production" and os.environ.get(name) is not None:
+        source = "系统环境变量"
+    else:
+        source = ".env 配置"
+    display_value = mask_secret(value) if "KEY" in name or "API" in name else value
+    logger.info(f"从{source}获取 {name}: {display_value}")
 
-SERPAPI_API_KEY = os.environ.get('SERPAPI_API_KEY')
-if SERPAPI_API_KEY:
-    settings.SERPAPI_API_KEY = SERPAPI_API_KEY
-    logger.info(f"从系统环境变量获取 SERPAPI_API_KEY: {mask_secret(SERPAPI_API_KEY)}")
-else:
-    logger.info(f"使用.env 配置的 SERPAPI_API_KEY: {mask_secret(settings.SERPAPI_API_KEY)}")
+# 统一记录所有配置项的来源和信息
+log_config_item("SUPABASE_URL", settings.SUPABASE_URL)
+log_config_item("SUPABASE_SERVICE_KEY", settings.SUPABASE_SERVICE_KEY)
+log_config_item("OPENAI_API_KEY", settings.OPENAI_API_KEY)
+log_config_item("MODEL_NAME", settings.MODEL_NAME)
+log_config_item("SERPAPI_API_KEY", settings.SERPAPI_API_KEY)
 
 # 验证所有必需的配置是否已设置
 required_configs = {
@@ -81,7 +64,7 @@ required_configs = {
     "SUPABASE_SERVICE_KEY": settings.SUPABASE_SERVICE_KEY,
     "OPENAI_API_KEY": settings.OPENAI_API_KEY,
     "MODEL_NAME": settings.MODEL_NAME,
-    "SERPAPI_API_KEY": settings.SERPAPI_API_KEY
+    "SERPAPI_API_KEY": settings.SERPAPI_API_KEY,
 }
 
 for config_name, config_value in required_configs.items():
