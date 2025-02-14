@@ -82,11 +82,11 @@ class ChatService:
       # 格式化历史消息
       formatted_history = self.format_message_history(message_history)
 
-      # 调用 chain 生成回复
-      response = await self.agent.arun(input={
-          "input": user_input,
-          "chat_history": formatted_history
-      })
+      # 调用 agent 生成回复
+      response = await self.agent.ainvoke(
+          input=user_input,
+          chat_history=formatted_history
+      )
 
       return response
 
