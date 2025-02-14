@@ -101,3 +101,7 @@ async def root():
     根路径 - 快速健康检查
     """
     return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)

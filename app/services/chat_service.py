@@ -25,7 +25,7 @@ class ChatService:
             openai_api_key=settings.OPENAI_API_KEY
         )
         
-        search = SerpAPIWrapper(api_key=settings.SERP_API_KEY)
+        search = SerpAPIWrapper(api_key=settings.SERPAPI_API_KEY)
         self.tool = [
             Tool(
                 name="Search",
