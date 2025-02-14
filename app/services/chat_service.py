@@ -5,6 +5,10 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from typing import List, Dict, Any
+from langchain.agents import AgentType, initialize_agent
+# from langchain.utilities import SerpAPIWrapper
+from langchain_community.utilities import SerpAPIWrapper
+from langchain.tools import Tool
 
 from app.config import settings
 
@@ -20,6 +24,22 @@ class ChatService:
             streaming=True,   # 启用流式输出
             openai_api_key=settings.OPENAI_API_KEY
         )
+        
+        search = SerpAPIWrapper(api_key=settings.SERP_API_KEY)
+        self.tool = [
+            Tool(
+                name="Search",
+                func=search.run,
+                description="当你需要搜索实时信息时使用这个工具"
+            )
+        ]
+        # 初始化 Agent
+        self.agent = initialize_agent(
+            tools=self.tool,
+            llm=self.model,
+            agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+            verbose=True
+        )
 
         # 构造 Prompt 模板：固定的系统提示 + 历史记录占位 + 当前输入
         self.prompt = ChatPromptTemplate.from_messages([
@@ -29,7 +49,7 @@ class ChatService:
         ])
 
         # 组合 prompt、模型与输出解析器，形成 chain
-        self.chain = self.prompt | self.model | StrOutputParser()
+        # self.chain = self.prompt | self.model | StrOutputParser()
 
     def format_message_history(self, messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
@@ -66,10 +86,13 @@ class ChatService:
             formatted_history = self.format_message_history(message_history)
             
             # 调用 chain 生成回复
-            response = await self.chain.ainvoke({
-                "input": user_input,
-                "chat_history": formatted_history
-            })
+            response = await self.agent.arun(
+                input=
+                {
+                    "input": user_input,
+                    "chat_history": formatted_history
+                }
+            )
             
             return response
             

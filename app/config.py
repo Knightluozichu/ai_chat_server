@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # OpenAI 相关配置
     OPENAI_API_KEY: str
     MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在环境变量中覆盖
+    
+    SERPAPI_API_KEY: str
 
     class Config:
         # 指定 .env 文件路径，便于本地和容器环境统一配置
@@ -66,12 +68,20 @@ if MODEL_NAME:
 else:
     logger.info(f"使用 .env 配置的 MODEL_NAME: {settings.MODEL_NAME}")
 
+SERPAPI_API_KEY = os.environ.get('SERPAPI_API_KEY')
+if SERPAPI_API_KEY:
+    settings.SERPAPI_API_KEY = SERPAPI_API_KEY
+    logger.info(f"从系统环境变量获取 SERPAPI_API_KEY: {mask_secret(SERPAPI_API_KEY)}")
+else:
+    logger.info(f"使用.env 配置的 SERPAPI_API_KEY: {mask_secret(settings.SERPAPI_API_KEY)}")
+
 # 验证所有必需的配置是否已设置
 required_configs = {
     "SUPABASE_URL": settings.SUPABASE_URL,
     "SUPABASE_SERVICE_KEY": settings.SUPABASE_SERVICE_KEY,
     "OPENAI_API_KEY": settings.OPENAI_API_KEY,
-    "MODEL_NAME": settings.MODEL_NAME
+    "MODEL_NAME": settings.MODEL_NAME,
+    "SERPAPI_API_KEY": settings.SERPAPI_API_KEY
 }
 
 for config_name, config_value in required_configs.items():
