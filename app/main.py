@@ -10,6 +10,7 @@ import logging
 # 导入服务模块
 from app.services.supabase import supabase_service
 from app.services.chat_service import chat_service
+from app.services.document_service import document_service
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

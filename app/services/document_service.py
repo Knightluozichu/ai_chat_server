@@ -1,5 +1,9 @@
+import logging
 from typing import List
 from langchain.document_loaders import TextLoader
+
+# 配置日志
+logger = logging.getLogger(__name__)
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 import tempfile
@@ -28,9 +32,12 @@ class DocumentService:
             async with httpx.AsyncClient() as client:
                 response = await client.get(file_url)
                 response.raise_for_status()
+            logger.info(f"文件下载成功: {file_url}")
                 
             # 保存到临时文件
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            try:
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    logger.info(f"开始保存临时文件: {temp_file.name}")
                 temp_file.write(response.content)
                 temp_path = temp_file.name
             
