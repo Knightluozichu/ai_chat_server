@@ -118,8 +118,9 @@ class ChatService:
                 'match_documents',
                 {
                     'query_embedding': query_embedding,
-                    'match_count': 3,
-                    'user_id_input': user_id
+                    'user_id_input': user_id,
+                    'match_threshold': 0.8,
+                    'match_count': 3
                 }
             ).execute()
             
