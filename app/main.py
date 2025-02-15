@@ -46,14 +46,14 @@ async def chat_endpoint(
         # 1. 获取对话历史
         logger.info(f"获取对话{conversation_id}的历史消息")
         history = supabase_service.get_conversation_messages(conversation_id, request.user_id)
-        
+
         # 2. 生成AI回复
         logger.info(f"正在为用户{request.user_id}生成回复")
-        ai_response = await chat_service.generate_response(request.message, history)
-        
+        ai_response = await chat_service.generate_response(request.message, history, request.user_id)
+
         # 3. 返回响应
         return {"response": ai_response}
-        
+
     except Exception as e:
         logger.error(f"处理请求时发生错误: {str(e)}")
         if isinstance(e, HTTPException):
@@ -67,7 +67,7 @@ async def get_chat_history(conversation_id: str):
     """
     try:
         # 获取对话历史
-        history = supabase_service.get_conversation_messages(conversation_id, NoneNoneNone)
+        history = supabase_service.get_conversation_messages(conversation_id, None)
         return history
     except Exception as e:
         logger.error(f"获取对话历史时发生错误: {str(e)}")
@@ -92,31 +92,31 @@ async def process_document(
         # 记录请求体日志
         body = await request.json()
         logger.info(f"收到文档处理请求: {body}")
-        
+
         file_id = body.get("file_id")
         file_url = body.get("url")
         user_id = body.get("user_id")
-        
+
         if not user_id:
             logger.error("缺少user_id参数")
             raise HTTPException(status_code=400, detail="Missing user_id parameter")
-        
+
         if not file_id or not file_url:
             logger.error(f"缺少必要参数: file_id={file_id}, file_url={file_url}")
             raise HTTPException(status_code=400, detail="缺少必要参数 file_id 或 url")
-            
+
         logger.info(f"开始处理文档: file_id={file_id}, url={file_url}")
-        
+
         background_tasks.add_task(
             document_service.process_file,
             file_id=file_id,
             file_url=file_url,
             user_id=user_id
         )
-        
+
         logger.info(f"文档处理任务已添加到后台: file_id={file_id}")
         return {"status": "processing", "file_id": file_id}
-        
+
     except JSONDecodeError as e:
         logger.error(f"JSON解析错误: {str(e)}")
         raise HTTPException(status_code=400, detail="无效的JSON格式")

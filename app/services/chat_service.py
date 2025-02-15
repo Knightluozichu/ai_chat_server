@@ -76,9 +76,45 @@ class ChatService:
             formatted.append({"role": role, "content": msg.get("content", "")})
         return formatted
 
+    async def _get_relevant_docs(self, query: str, user_id: str) -> List[Dict]:
+        """获取相关文档片段"""
+        # 生成查询文本的向量嵌入
+        query_embedding = await self.embeddings.aembed_query(query)
+        
+        # 调用 Supabase 存储过程查询相关文档
+        try:
+            result = await supabase_service.client.rpc(
+                'match_documents',
+                {
+                    'query_embedding': query_embedding,
+                    'match_count': 3,  # 获取相似度最高的3条记录
+                    'user_id_input': user_id
+                }
+            ).execute()
+            
+            if result.data:
+                return result.data
+            return []
+        except Exception as e:
+            logger.error(f"获取相关文档失败: {str(e)}")
+            return []
+
     async def generate_response(
-        self, user_input: str, message_history: List[Dict[str, Any]]
+        self, user_input: str, message_history: List[Dict[str, Any]], user_id: str = None
     ) -> str:
+        """生成回复,支持RAG检索增强"""
+        try:
+            # 获取相关文档片段
+            relevant_docs = []
+            if user_id:
+                relevant_docs = await self._get_relevant_docs(user_input, user_id)
+            
+            # 构造system提示,加入文档内容
+            system_prompt = "你是一个有帮助的AI助手,请用简洁、专业的中文回答问题。"
+            if relevant_docs:
+                docs_content = "\n\n".join([f"文档片段 {i+1}:\n{doc['content']}" 
+                                          for i, doc in enumerate(relevant_docs)])
+                system_prompt += f"\n\n参考以下相关文档内容回答:\n{docs_content}"
         """
         根据用户输入和历史消息生成 AI 回复。
 
