@@ -1,12 +1,12 @@
 
 modules = ["python-3.10:v18-20230807-322e88b"]
 
-# 运行命令优化，添加 --reload 支持热重载
-run = "uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload"
+# 运行命令改为使用 run.py
+run = "python run.py"
 
-# 部署配置优化
+# 部署配置
 [deployment]
-run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 3000"]
+run = ["sh", "-c", "python run.py"]
 deploymentTarget = "cloudrun"
 
 # 优化端口配置
