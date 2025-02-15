@@ -102,7 +102,9 @@ class ChatService:
     async def generate_response(
         self, user_input: str, message_history: List[Dict[str, Any]], user_id: str = None
     ) -> str:
-        """生成回复,支持RAG检索增强"""
+        """
+        根据用户输入和历史消息生成 AI 回复，支持RAG检索增强。
+        """
         try:
             # 获取相关文档片段
             relevant_docs = []
@@ -115,8 +117,6 @@ class ChatService:
                 docs_content = "\n\n".join([f"文档片段 {i+1}:\n{doc['content']}" 
                                           for i, doc in enumerate(relevant_docs)])
                 system_prompt += f"\n\n参考以下相关文档内容回答:\n{docs_content}"
-        """
-        根据用户输入和历史消息生成 AI 回复。
 
         Args:
             user_input: 用户当前的输入消息。
