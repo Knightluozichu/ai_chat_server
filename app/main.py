@@ -124,6 +124,24 @@ async def process_document(
         logger.error(f"处理文档请求时发生错误: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/documents/{file_id}/status")
+async def get_file_status(file_id: str):
+    """获取文件处理状态"""
+    try:
+        result = supabase_service.client.table('files') \
+            .select('processing_status,error_message') \
+            .eq('id', file_id) \
+            .single() \
+            .execute()
+            
+        if not result.data:
+            raise HTTPException(status_code=404, detail="文件不存在")
+            
+        return result.data
+    except Exception as e:
+        logger.error(f"获取文件状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def root():
     """
