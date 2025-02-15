@@ -82,19 +82,41 @@ async def health_check():
 
 @app.post("/api/documents/process")
 async def process_document(
-    file_id: str,
-    file_url: str,
-    user_id: str,
+    request: Request,
     background_tasks: BackgroundTasks
 ):
     """处理上传的文档"""
-    background_tasks.add_task(
-        document_service.process_file,
-        file_id=file_id,
-        file_url=file_url,
-        user_id=user_id
-    )
-    return {"status": "processing"}
+    try:
+        # 记录请求体日志
+        body = await request.json()
+        logger.info(f"收到文档处理请求: {body}")
+        
+        file_id = body.get("file_id")
+        file_url = body.get("url")  # 注意这里前端传的是 url 而不是 file_url
+        user_id = body.get("user_id", "default_user")  # 如果没有user_id则使用默认值
+        
+        if not file_id or not file_url:
+            logger.error(f"缺少必要参数: file_id={file_id}, file_url={file_url}")
+            raise HTTPException(status_code=400, detail="缺少必要参数 file_id 或 url")
+            
+        logger.info(f"开始处理文档: file_id={file_id}, url={file_url}")
+        
+        background_tasks.add_task(
+            document_service.process_file,
+            file_id=file_id,
+            file_url=file_url,
+            user_id=user_id
+        )
+        
+        logger.info(f"文档处理任务已添加到后台: file_id={file_id}")
+        return {"status": "processing", "file_id": file_id}
+        
+    except JSONDecodeError as e:
+        logger.error(f"JSON解析错误: {str(e)}")
+        raise HTTPException(status_code=400, detail="无效的JSON格式")
+    except Exception as e:
+        logger.error(f"处理文档请求时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 async def root():

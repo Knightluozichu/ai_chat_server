@@ -18,8 +18,10 @@ class DocumentService:
     
     async def process_file(self, file_id: str, file_url: str, user_id: str):
         """处理上传的文件"""
+        logger.info(f"开始处理文件: file_id={file_id}, url={file_url}")
         try:
             # 更新文件状态为处理中
+            logger.info(f"更新文件状态为处理中: file_id={file_id}")
             await supabase_service.update_file_status(file_id, "processing")
             
             # 下载文件
