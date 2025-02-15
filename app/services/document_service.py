@@ -12,7 +12,7 @@ class FileProcessingStatus(Enum):
     pending = "pending"
     processing = "processing"
     completed = "completed"
-    failed = "failed"
+    error = "error"  # 将 failed 改为 error 以匹配数据库约束
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -92,7 +92,7 @@ class DocumentService:
         except Exception as e:
             # 更新文件状态为失败
             logger.error(f"处理文件失败: {str(e)}")
-            await supabase_service.update_file_status(file_id, FileProcessingStatus.failed.value)
+            await supabase_service.update_file_status(file_id, FileProcessingStatus.error.value)
             raise e
         finally:
             # 清理临时文件
