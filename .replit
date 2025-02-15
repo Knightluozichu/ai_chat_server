@@ -1,7 +1,4 @@
-# .replit 文件内容
-
-# 使用 Python 3.10
-modules = ["python-3.10"]
+modules = ["python-3.10", "postgresql-16"]
 
 # 运行命令
 run = "uvicorn app.main:app --host=0.0.0.0 --port 3000"
@@ -15,3 +12,6 @@ run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 3000"]
 [[ports]]
 localPort = 3000
 externalPort = 80  
+
+[objectStorage]
+defaultBucketID = "replit-objstore-3288b7bf-1a77-4294-9110-12d53a8510b8"
