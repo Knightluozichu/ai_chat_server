@@ -1,9 +1,10 @@
 """
 API 层入口：实现与前端的交互接口，集成 Supabase 和 Chat 服务
 """
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from json.decoder import JSONDecodeError
 import logging
 
 # 导入服务模块
