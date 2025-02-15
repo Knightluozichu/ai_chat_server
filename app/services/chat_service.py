@@ -28,12 +28,12 @@ class ChatService:
                 model=settings.MODEL_NAME,
                 temperature=0.7,
                 streaming=True,
-                openai_api_key=settings.OPENAI_API_KEY
+                api_key=settings.OPENAI_API_KEY
             )
             
             # 初始化向量嵌入模型
             self.embeddings = OpenAIEmbeddings(
-                openai_api_key=settings.OPENAI_API_KEY
+                api_key=settings.OPENAI_API_KEY
             )
 
             # 初始化搜索工具
