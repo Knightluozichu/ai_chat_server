@@ -25,7 +25,7 @@ class ChatService:
         try:
             # 初始化 OpenAI 模型实例
             self.model = ChatOpenAI(
-                model_name=settings.MODEL_NAME,
+                model=settings.MODEL_NAME,
                 temperature=0.7,
                 streaming=True,
                 openai_api_key=settings.OPENAI_API_KEY
@@ -156,37 +156,53 @@ class ChatService:
             if user_id:
                 relevant_docs = await self._get_relevant_docs(user_input, user_id)
             
-            # 构造system提示,加入文档内容
-            system_prompt = "你是一个有帮助的AI助手,请用简洁、专业的中文回答问题。"
+            # 格式化历史消息
+            formatted_history = self.format_message_history(message_history)
+            
+            # 构造system提示并加入到历史消息开头
+            system_message = {"role": "system", "content": "你是一个有帮助的AI助手,请用简洁、专业的中文回答问题。"}
+            
             if relevant_docs:
                 docs_content = "\n\n".join([
                     f"文档片段 {i+1}:\n{doc['content']}" 
                     for i, doc in enumerate(relevant_docs)
                 ])
-                system_prompt += f"\n\n参考以下相关文档内容回答:\n{docs_content}"
+                system_message["content"] += f"\n\n参考以下相关文档内容回答:\n{docs_content}"
             
-            # 格式化历史消息
-            formatted_history = self.format_message_history(message_history)
-
+            # 将系统消息插入到历史消息开头
+            formatted_history.insert(0, system_message)
+            
             # 调用 agent 生成回复
-            response = await self.agent.ainvoke({
-                "input": user_input,
-                "chat_history": formatted_history
-            })
+            try:
+                response = await self.agent.ainvoke({
+                    "input": user_input,
+                    "chat_history": formatted_history
+                })
+                
+                # 解析响应
+                if isinstance(response, dict):
+                    result = response
+                elif isinstance(response, str):
+                    try:
+                        result = json.loads(response)
+                    except json.JSONDecodeError:
+                        return response.strip()  # 如果不是JSON，直接返回字符串
+                else:
+                    return str(response)
 
-            # 解析响应
-            if isinstance(response, dict):
-                result = response
-            else:
-                result = json.loads(response)
-
-            # 提取最终答案
-            if "action_input" in result:
-                return result["action_input"]
-            elif "output" in result:
-                return result["output"]
-            else:
-                return str(result)
+                # 提取最终答案
+                if "action_input" in result:
+                    return result["action_input"]
+                elif "output" in result:
+                    return result["output"]
+                else:
+                    return str(result)
+                    
+            except Exception as e:
+                logger.error(f"Agent响应解析失败: {str(e)}")
+                if isinstance(response, (str, dict)):
+                    return str(response)
+                raise
 
         except Exception as e:
             error_msg = f"生成回复失败: {str(e)}"
