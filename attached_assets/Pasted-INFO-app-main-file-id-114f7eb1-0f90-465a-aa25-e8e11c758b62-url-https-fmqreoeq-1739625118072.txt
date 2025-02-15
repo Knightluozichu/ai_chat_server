@@ -1,0 +1,74 @@
+INFO:app.main:收到文档处理请求: {'file_id': '114f7eb1-0f90-465a-aa25-e8e11c758b62', 'url': 'https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/gp3xml42sh4.pdf'}
+INFO:app.main:开始处理文档: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62, url=https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/gp3xml42sh4.pdf
+INFO:app.main:文档处理任务已添加到后台: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62
+INFO:     172.31.128.83:51294 - "POST /api/documents/process HTTP/1.1" 200 OK
+INFO:app.services.document_service:开始处理文件: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62, url=https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/gp3xml42sh4.pdf
+INFO:app.services.document_service:更新文件状态为处理中: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62
+INFO:httpx:HTTP Request: PATCH https://fmqreoeqzqdaqdtgqzkc.supabase.co/rest/v1/files?id=eq.114f7eb1-0f90-465a-aa25-e8e11c758b62 "HTTP/2 200 OK"
+INFO:app.services.supabase:文件状态已更新: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62, status=processing
+INFO:httpx:HTTP Request: GET https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/gp3xml42sh4.pdf "HTTP/1.1 200 OK"
+INFO:app.services.document_service:文件下载成功: https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/gp3xml42sh4.pdf
+INFO:app.services.document_service:开始保存临时文件: /tmp/tmpx52m08s3
+INFO:app.services.document_service:处理文档块 1/5
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://fmqreoeqzqdaqdtgqzkc.supabase.co/rest/v1/document_chunks "HTTP/2 400 Bad Request"
+ERROR:app.services.document_service:处理文档块 1 失败: {'code': 'PGRST204', 'details': None, 'hint': None, 'message': "Could not find the 'user_id' column of 'document_chunks' in the schema cache"}
+ERROR:app.services.document_service:处理文件失败: {'code': 'PGRST204', 'details': None, 'hint': None, 'message': "Could not find the 'user_id' column of 'document_chunks' in the schema cache"}
+INFO:httpx:HTTP Request: PATCH https://fmqreoeqzqdaqdtgqzkc.supabase.co/rest/v1/files?id=eq.114f7eb1-0f90-465a-aa25-e8e11c758b62 "HTTP/2 200 OK"
+INFO:app.services.supabase:文件状态已更新: file_id=114f7eb1-0f90-465a-aa25-e8e11c758b62, status=error
+INFO:app.services.document_service:临时文件已清理: /tmp/tmpx52m08s3
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/uvicorn/protocols/http/h11_impl.py", line 403, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/applications.py", line 112, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/routing.py", line 74, in app
+    await response(scope, receive, send)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/responses.py", line 159, in __call__
+    await self.background()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/background.py", line 41, in __call__
+    await task()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/starlette/background.py", line 26, in __call__
+    await self.func(*self.args, **self.kwargs)
+  File "/home/runner/workspace/app/services/document_service.py", line 105, in process_file
+    raise e
+  File "/home/runner/workspace/app/services/document_service.py", line 96, in process_file
+    raise e
+  File "/home/runner/workspace/app/services/document_service.py", line 88, in process_file
+    await supabase_service.store_document_chunk(
+  File "/home/runner/workspace/app/services/supabase.py", line 106, in store_document_chunk
+    .execute()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(r.json())
+postgrest.exceptions.APIError: {'code': 'PGRST204', 'details': None, 'hint': None, 'message': "Could not find the 'user_id' column of 'document_chunks' in the schema cache"}
