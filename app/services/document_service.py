@@ -91,9 +91,16 @@ class DocumentService:
                         content=chunk.page_content,
                         embedding=embedding
                     )
+                    logger.info(f"成功保存文档块 {i+1}")
                 except Exception as e:
                     logger.error(f"处理文档块 {i+1} 失败: {str(e)}")
-                    raise e
+                    # 更新文件状态为错误，并记录具体错误信息
+                    await supabase_service.update_file_status(
+                        file_id, 
+                        FileProcessingStatus.error.value,
+                        str(e)
+                    )
+                    raise
 
             # 更新文件状态为完成
             await supabase_service.update_file_status(file_id, FileProcessingStatus.completed.value)

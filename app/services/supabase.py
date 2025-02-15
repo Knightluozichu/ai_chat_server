@@ -96,15 +96,34 @@ class SupabaseService:
 
     async def store_document_chunk(self, file_id: str, user_id: str, content: str, embedding: list):
         """存储文档块及其向量"""
-        result = self.client.table('document_chunks') \
-            .insert({
-                "file_id": file_id,
-                "user_id": user_id,
-                "content": content,
-                "embedding": embedding
-            }) \
-            .execute()
-        return result.data
+        try:
+            # 先验证文件所有权
+            file_data = self.client.table('files') \
+                .select('user_id') \
+                .eq('id', file_id) \
+                .single() \
+                .execute()
+                
+            if not file_data.data:
+                raise ValueError(f"File not found: {file_id}")
+                
+            # 确保文件属于正确的用户
+            if file_data.data['user_id'] != user_id:
+                raise ValueError("User does not own this file")
+                
+            # 存储文档块
+            result = self.client.table('document_chunks') \
+                .insert({
+                    "file_id": file_id,
+                    "user_id": user_id,
+                    "content": content,
+                    "embedding": embedding
+                }) \
+                .execute()
+            return result.data
+        except Exception as e:
+            logger.error(f"存储文档块失败: {str(e)}")
+            raise
 
     def save_message(self, conversation_id: str, content: str, is_user: bool):
         """
