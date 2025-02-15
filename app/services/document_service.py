@@ -44,9 +44,12 @@ class DocumentService:
             try:
                 with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                     logger.info(f"开始保存临时文件: {temp_file.name}")
-                temp_file.write(response.content)
-                temp_path = temp_file.name
-            
+                    temp_file.write(response.content)
+                    temp_path = temp_file.name
+            except Exception as e:
+                logger.error(f"保存临时文件失败: {str(e)}")
+                raise e
+
             # 加载文档
             loader = TextLoader(temp_path)
             documents = loader.load()
