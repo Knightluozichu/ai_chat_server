@@ -32,7 +32,11 @@ class DocumentService:
                 
             # 更新文件状态为处理中
             logger.info(f"更新文件状态为处理中: file_id={file_id}")
-            await supabase_service.update_file_status(file_id, "processing")
+            try:
+                await supabase_service.update_file_status(file_id, "processing")
+            except Exception as e:
+                logger.error(f"更新文件状态失败: {str(e)}")
+                return
             
             # 下载文件
             async with httpx.AsyncClient() as client:

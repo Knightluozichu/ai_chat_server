@@ -2,6 +2,7 @@
 Supabase 服务模块：封装 Supabase 客户端及数据库操作
 包括获取对话历史消息和保存新消息的功能
 """
+from datetime import datetime
 from supabase import create_client, Client
 from app.config import settings
 import logging
