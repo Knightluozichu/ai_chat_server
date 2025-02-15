@@ -23,7 +23,13 @@ class DocumentService:
     async def process_file(self, file_id: str, file_url: str, user_id: str):
         """处理上传的文件"""
         logger.info(f"开始处理文件: file_id={file_id}, url={file_url}")
+        temp_path = None
+        
         try:
+            # 验证文件URL
+            if not file_url.endswith(('.txt', '.pdf', '.doc', '.docx')):
+                raise ValueError("不支持的文件类型")
+                
             # 更新文件状态为处理中
             logger.info(f"更新文件状态为处理中: file_id={file_id}")
             await supabase_service.update_file_status(file_id, "processing")
@@ -63,7 +69,16 @@ class DocumentService:
             
         except Exception as e:
             # 更新文件状态为失败
+            logger.error(f"处理文件失败: {str(e)}")
             await supabase_service.update_file_status(file_id, "failed")
             raise e
+        finally:
+            # 清理临时文件
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                    logger.info(f"临时文件已清理: {temp_path}")
+                except Exception as e:
+                    logger.error(f"清理临时文件失败: {str(e)}")
 
 document_service = DocumentService()

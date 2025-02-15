@@ -72,13 +72,26 @@ class SupabaseService:
             )
             raise Exception(f"获取对话消息失败: 错误码={error_code}, 信息={error_message}")
 
-    async def update_file_status(self, file_id: str, status: str):
+    async def update_file_status(self, file_id: str, status: str, error_message: str = None):
         """更新文件处理状态"""
-        result = self.client.table('files') \
-            .update({"processing_status": status}) \
-            .eq('id', file_id) \
-            .execute()
-        return result.data
+        update_data = {
+            "processing_status": status,
+            "updated_at": datetime.now().isoformat(),
+        }
+        
+        if error_message:
+            update_data["error_message"] = error_message
+            
+        try:
+            result = self.client.table('files') \
+                .update(update_data) \
+                .eq('id', file_id) \
+                .execute()
+            logger.info(f"文件状态已更新: file_id={file_id}, status={status}")
+            return result.data
+        except Exception as e:
+            logger.error(f"更新文件状态失败: {str(e)}")
+            raise e
 
     async def store_document_chunk(self, file_id: str, user_id: str, content: str, embedding: list):
         """存储文档块及其向量"""
