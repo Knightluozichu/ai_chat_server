@@ -54,18 +54,35 @@ class DocumentService:
                 logger.error(f"更新文件状态失败: {str(e)}")
                 return
 
-            # 下载文件
-            async with httpx.AsyncClient() as client:
-                response = await client.get(file_url)
-                response.raise_for_status()
-            logger.info(f"文件下载成功: {file_url}")
+            # 下载文件，增加重试和超时控制
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                for attempt in range(3):
+                    try:
+                        response = await client.get(file_url)
+                        response.raise_for_status()
+                        if len(response.content) == 0:
+                            raise ValueError("Downloaded file is empty")
+                        logger.info(f"文件下载成功: {file_url}, size: {len(response.content)} bytes")
+                        break
+                    except Exception as e:
+                        if attempt == 2:
+                            raise Exception(f"文件下载失败: {str(e)}")
+                        await asyncio.sleep(1 * (attempt + 1))
 
-            # 保存到临时文件
+            # 保存到临时文件，增加文件大小限制
             try:
+                max_file_size = 10 * 1024 * 1024  # 10MB
+                if len(response.content) > max_file_size:
+                    raise ValueError(f"文件大小超过限制: {len(response.content)} bytes")
+                    
                 with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                     logger.info(f"开始保存临时文件: {temp_file.name}")
                     temp_file.write(response.content)
                     temp_path = temp_file.name
+                    
+                # 验证文件是否成功写入
+                if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                    raise ValueError("临时文件创建失败")
             except Exception as e:
                 logger.error(f"保存临时文件失败: {str(e)}")
                 raise e

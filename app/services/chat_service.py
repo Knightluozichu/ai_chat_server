@@ -176,33 +176,39 @@ class ChatService:
             try:
                 response = await self.agent.ainvoke({
                     "input": user_input,
-                    "chat_history": formatted_history
+                    "chat_history": formatted_history,
+                    "timeout": 60  # 添加超时控制
                 })
                 
-                # 解析响应
-                if isinstance(response, dict):
-                    result = response
-                elif isinstance(response, str):
-                    try:
-                        result = json.loads(response)
-                    except json.JSONDecodeError:
-                        return response.strip()  # 如果不是JSON，直接返回字符串
-                else:
-                    return str(response)
+                # 规范化响应处理
+                def extract_response(resp):
+                    if isinstance(resp, dict):
+                        for key in ["action_input", "output", "response", "answer"]:
+                            if key in resp and resp[key]:
+                                return str(resp[key]).strip()
+                        return str(resp)
+                    elif isinstance(resp, str):
+                        try:
+                            parsed = json.loads(resp)
+                            return extract_response(parsed)
+                        except json.JSONDecodeError:
+                            return resp.strip()
+                    return str(resp)
 
-                # 提取最终答案
-                if "action_input" in result:
-                    return result["action_input"]
-                elif "output" in result:
-                    return result["output"]
-                else:
-                    return str(result)
+                result = extract_response(response)
+                if not result:
+                    raise ValueError("Empty response from agent")
                     
+                return result
+                    
+            except asyncio.TimeoutError:
+                logger.error("Agent响应超时")
+                raise Exception("生成响应超时，请稍后重试")
             except Exception as e:
-                logger.error(f"Agent响应解析失败: {str(e)}")
+                logger.error(f"Agent响应解析失败: {str(e)}", exc_info=True)
                 if isinstance(response, (str, dict)):
-                    return str(response)
-                raise
+                    return extract_response(response)
+                raise Exception(f"生成响应失败: {str(e)}")
 
         except Exception as e:
             error_msg = f"生成回复失败: {str(e)}"
