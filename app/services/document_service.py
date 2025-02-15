@@ -36,9 +36,15 @@ class DocumentService:
         temp_path = None
 
         try:
-            # 验证文件URL
-            if not file_url.endswith(('.txt', '.pdf', '.doc', '.docx')):
-                raise ValueError("不支持的文件类型")
+            # 获取文件扩展名并验证
+            file_extension = os.path.splitext(file_url)[1].lower()
+            supported_extensions = {
+                '.pdf': PyPDFLoader,
+                '.txt': TextLoader
+            }
+            
+            if file_extension not in supported_extensions:
+                raise ValueError(f"不支持的文件类型: {file_extension}. 支持的类型: {', '.join(supported_extensions.keys())}")
 
             # 更新文件状态为处理中
             logger.info(f"更新文件状态为处理中: file_id={file_id}")
@@ -64,10 +70,10 @@ class DocumentService:
                 logger.error(f"保存临时文件失败: {str(e)}")
                 raise e
 
-            # 根据文件类型选择合适的加载器
-            if file_url.endswith('.pdf'):
-                loader = PyPDFLoader(temp_path)
-            else:
+            # 使用对应的加载器
+            loader_class = supported_extensions[file_extension]
+            loader = loader_class(temp_path)
+            if file_extension == '.txt':
                 loader = TextLoader(temp_path, encoding='utf-8', autodetect_encoding=True)
             documents = loader.load()
 
