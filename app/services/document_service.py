@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 from langchain.document_loaders import TextLoader
 
@@ -62,14 +63,19 @@ class DocumentService:
             chunks = self.text_splitter.split_documents(documents)
             
             # 生成向量嵌入并存储
-            for chunk in chunks:
-                embedding = await self.embeddings.aembed_query(chunk.page_content)
-                await supabase_service.store_document_chunk(
-                    file_id=file_id,
-                    user_id=user_id,
-                    content=chunk.page_content,
-                    embedding=embedding
-                )
+            for i, chunk in enumerate(chunks):
+                try:
+                    logger.info(f"处理文档块 {i+1}/{len(chunks)}")
+                    embedding = await self.embeddings.aembed_query(chunk.page_content)
+                    await supabase_service.store_document_chunk(
+                        file_id=file_id,
+                        user_id=user_id,
+                        content=chunk.page_content,
+                        embedding=embedding
+                    )
+                except Exception as e:
+                    logger.error(f"处理文档块 {i+1} 失败: {str(e)}")
+                    raise e
             
             # 更新文件状态为完成
             await supabase_service.update_file_status(file_id, "completed")
