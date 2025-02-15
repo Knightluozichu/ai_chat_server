@@ -49,22 +49,7 @@ async def chat_endpoint(
         logger.info(f"正在为用户{request.user_id}生成回复")
         ai_response = await chat_service.generate_response(request.message, history)
         
-        # 3. 异步保存用户消息和AI回复
-        logger.info("异步保存消息")
-        background_tasks.add_task(
-            supabase_service.save_message,
-            conversation_id=conversation_id,
-            content=request.message,
-            is_user=True
-        )
-        background_tasks.add_task(
-            supabase_service.save_message,
-            conversation_id=conversation_id,
-            content=ai_response,
-            is_user=False
-        )
-        
-        # 4. 返回响应
+        # 3. 返回响应
         return {"response": ai_response}
         
     except Exception as e:
