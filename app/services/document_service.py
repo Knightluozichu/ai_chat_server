@@ -9,7 +9,7 @@ from app.services.supabase import supabase_service
 
 class DocumentService:
     def __init__(self):
-        self.embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
+        self.embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
