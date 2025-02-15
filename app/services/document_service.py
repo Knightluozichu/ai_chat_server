@@ -34,7 +34,7 @@ class DocumentService:
             # 更新文件状态为处理中
             logger.info(f"更新文件状态为处理中: file_id={file_id}")
             try:
-                await supabase_service.update_file_status(file_id, "processing")
+                await supabase_service.update_file_status(file_id, "PROCESSING")
             except Exception as e:
                 logger.error(f"更新文件状态失败: {str(e)}")
                 return
@@ -78,12 +78,12 @@ class DocumentService:
                     raise e
             
             # 更新文件状态为完成
-            await supabase_service.update_file_status(file_id, "completed")
+            await supabase_service.update_file_status(file_id, "COMPLETED")
             
         except Exception as e:
             # 更新文件状态为失败
             logger.error(f"处理文件失败: {str(e)}")
-            await supabase_service.update_file_status(file_id, "failed")
+            await supabase_service.update_file_status(file_id, "FAILED")
             raise e
         finally:
             # 清理临时文件
