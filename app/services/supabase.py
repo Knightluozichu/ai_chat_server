@@ -72,6 +72,26 @@ class SupabaseService:
             )
             raise Exception(f"获取对话消息失败: 错误码={error_code}, 信息={error_message}")
 
+    async def update_file_status(self, file_id: str, status: str):
+        """更新文件处理状态"""
+        result = self.client.table('files') \
+            .update({"processing_status": status}) \
+            .eq('id', file_id) \
+            .execute()
+        return result.data
+
+    async def store_document_chunk(self, file_id: str, user_id: str, content: str, embedding: list):
+        """存储文档块及其向量"""
+        result = self.client.table('document_chunks') \
+            .insert({
+                "file_id": file_id,
+                "user_id": user_id,
+                "content": content,
+                "embedding": embedding
+            }) \
+            .execute()
+        return result.data
+
     def save_message(self, conversation_id: str, content: str, is_user: bool):
         """
         保存一条消息记录到 messages 表中

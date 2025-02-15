@@ -80,6 +80,22 @@ async def health_check():
     """
     return {"status": "healthy"}
 
+@app.post("/api/documents/process")
+async def process_document(
+    file_id: str,
+    file_url: str,
+    user_id: str,
+    background_tasks: BackgroundTasks
+):
+    """处理上传的文档"""
+    background_tasks.add_task(
+        document_service.process_file,
+        file_id=file_id,
+        file_url=file_url,
+        user_id=user_id
+    )
+    return {"status": "processing"}
+
 @app.get("/")
 async def root():
     """
