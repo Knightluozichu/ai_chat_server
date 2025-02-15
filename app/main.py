@@ -94,8 +94,12 @@ async def process_document(
         logger.info(f"收到文档处理请求: {body}")
         
         file_id = body.get("file_id")
-        file_url = body.get("url")  # 注意这里前端传的是 url 而不是 file_url
-        user_id = body.get("user_id", "default_user")  # 如果没有user_id则使用默认值
+        file_url = body.get("url")
+        user_id = body.get("user_id")
+        
+        if not user_id:
+            logger.error("缺少user_id参数")
+            raise HTTPException(status_code=400, detail="Missing user_id parameter")
         
         if not file_id or not file_url:
             logger.error(f"缺少必要参数: file_id={file_id}, file_url={file_url}")

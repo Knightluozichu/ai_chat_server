@@ -97,19 +97,26 @@ class SupabaseService:
     async def store_document_chunk(self, file_id: str, user_id: str, content: str, embedding: list):
         """存储文档块及其向量"""
         try:
+            logger.info(f"开始存储文档块: file_id={file_id}, user_id={user_id}")
+            
             # 先验证文件所有权
             file_data = self.client.table('files') \
                 .select('user_id') \
                 .eq('id', file_id) \
                 .single() \
                 .execute()
-                
+            
             if not file_data.data:
+                logger.error(f"文件不存在: file_id={file_id}")
                 raise ValueError(f"File not found: {file_id}")
+            
+            file_owner_id = file_data.data['user_id']
+            logger.info(f"文件所有者验证: owner_id={file_owner_id}, current_user_id={user_id}")
                 
             # 确保文件属于正确的用户
-            if file_data.data['user_id'] != user_id:
-                raise ValueError("User does not own this file")
+            if file_owner_id != user_id:
+                logger.error(f"文件所有权验证失败: owner_id={file_owner_id}, user_id={user_id}")
+                raise ValueError(f"User {user_id} does not own file {file_id}")
                 
             # 存储文档块
             result = self.client.table('document_chunks') \
