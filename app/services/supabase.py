@@ -42,7 +42,7 @@ class SupabaseService:
                     .execute()
 
                 conversations = conversation_result.data
-                
+
                 if conversations and len(conversations) > 0:
                     if conversations[0].get('user_id') != user_id:
                         raise Exception("无权访问此对话")
@@ -62,7 +62,7 @@ class SupabaseService:
             error_code = error_data.get('code', 'unknown')
             error_message = error_data.get('message', str(e))
             error_details = error_data.get('details', None)
-            
+
             logger.error(
                 f"获取对话消息失败:\n"
                 f"错误码: {error_code}\n"
@@ -79,10 +79,10 @@ class SupabaseService:
             "processing_status": status,
             "updated_at": datetime.now().isoformat(),
         }
-        
+
         if error_message:
             update_data["error_message"] = error_message
-            
+
         try:
             result = self.client.table('files') \
                 .update(update_data) \
@@ -94,30 +94,41 @@ class SupabaseService:
             logger.error(f"更新文件状态失败: {str(e)}")
             raise e
 
+    async def update_file_progress(self, file_id: str, progress: int):
+        """更新文件处理进度"""
+        try:
+            result = self.client.table('files').update({"progress": progress}).eq('id', file_id).execute()
+            logger.info(f"文件进度已更新: file_id={file_id}, progress={progress}")
+            return result.data
+        except Exception as e:
+            logger.error(f"更新文件进度失败: {str(e)}")
+            raise e
+
+
     async def store_document_chunk(self, file_id: str, user_id: str, content: str, embedding: list):
         """存储文档块及其向量"""
         try:
             logger.info(f"开始存储文档块: file_id={file_id}, user_id={user_id}")
-            
+
             # 先验证文件所有权
             file_data = self.client.table('files') \
                 .select('user_id') \
                 .eq('id', file_id) \
                 .single() \
                 .execute()
-            
+
             if not file_data.data:
                 logger.error(f"文件不存在: file_id={file_id}")
                 raise ValueError(f"File not found: {file_id}")
-            
+
             file_owner_id = file_data.data['user_id']
             logger.info(f"文件所有者验证: owner_id={file_owner_id}, current_user_id={user_id}")
-                
+
             # 确保文件属于正确的用户
             if file_owner_id != user_id:
                 logger.error(f"文件所有权验证失败: owner_id={file_owner_id}, user_id={user_id}")
                 raise ValueError(f"User {user_id} does not own file {file_id}")
-                
+
             # 存储文档块
             result = self.client.table('document_chunks') \
                 .insert({
@@ -153,7 +164,7 @@ class SupabaseService:
             "is_user": is_user,
             "created_at": "now()"  # 使用服务器时间
         }
-        
+
         result = self.client.table('messages') \
             .insert(insert_payload) \
             .execute() \

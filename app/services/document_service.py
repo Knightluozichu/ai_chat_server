@@ -98,9 +98,10 @@ class DocumentService:
             chunks = self.text_splitter.split_documents(documents)
 
             # 生成向量嵌入并存储
+            total_chunks = len(chunks)
             for i, chunk in enumerate(chunks):
                 try:
-                    logger.info(f"处理文档块 {i+1}/{len(chunks)}")
+                    logger.info(f"处理文档块 {i+1}/{total_chunks}")
                     embedding = await self.embeddings.aembed_query(chunk.page_content)
                     await supabase_service.store_document_chunk(
                         file_id=file_id,
@@ -108,7 +109,10 @@ class DocumentService:
                         content=chunk.page_content,
                         embedding=embedding
                     )
-                    logger.info(f"成功保存文档块 {i+1}")
+                    # 更新处理进度
+                    progress = int(((i + 1) / total_chunks) * 100)
+                    await supabase_service.update_file_progress(file_id, progress)
+                    logger.info(f"成功保存文档块 {i+1}, 进度: {progress}%")
                 except Exception as e:
                     logger.error(f"处理文档块 {i+1} 失败: {str(e)}")
                     # 更新文件状态为错误，并记录具体错误信息
