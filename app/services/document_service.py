@@ -64,8 +64,11 @@ class DocumentService:
                 logger.error(f"保存临时文件失败: {str(e)}")
                 raise e
 
-            # 加载文档
-            loader = TextLoader(temp_path)
+            # 根据文件类型选择合适的加载器
+            if file_url.endswith('.pdf'):
+                loader = PyPDFLoader(temp_path)
+            else:
+                loader = TextLoader(temp_path, encoding='utf-8', autodetect_encoding=True)
             documents = loader.load()
 
             # 分块
