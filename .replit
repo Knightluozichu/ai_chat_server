@@ -1,17 +1,21 @@
-modules = ["python-3.10", "postgresql-16"]
 
-# 运行命令
-run = "uvicorn app.main:app --host=0.0.0.0 --port 3000"
+modules = ["python-3.10:v18-20230807-322e88b"]
 
-# 部署配置
+# 运行命令优化，添加 --reload 支持热重载
+run = "uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload"
+
+# 部署配置优化
 [deployment]
-deploymentTarget = "cloudrun"
 run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 3000"]
+deploymentTarget = "cloudrun"
 
-# 监听端口
+# 优化端口配置
 [[ports]]
 localPort = 3000
-externalPort = 80  
+externalPort = 80
 
-[objectStorage]
-defaultBucketID = "replit-objstore-3288b7bf-1a77-4294-9110-12d53a8510b8"
+[nix]
+channel = "stable-23_05"
+
+[env]
+PYTHONPATH = "${PYTHONPATH}:${workspaceDir}"
