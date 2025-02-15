@@ -4,6 +4,7 @@
 
 import json
 import logging
+import asyncio
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from typing import List, Dict, Any, Optional
@@ -113,16 +114,18 @@ class ChatService:
             # 生成查询文本的向量嵌入
             query_embedding = await self.embeddings.aembed_query(query)
             
-            # 调用 Supabase 存储过程查询相关文档
-            result = await supabase_service.client.rpc(
-                'match_documents',
-                {
-                    'query_embedding': query_embedding,
-                    'user_id_input': user_id,
-                    'match_threshold': 0.8,
-                    'match_count': 3
-                }
-            ).execute()
+            # 将同步的 Supabase RPC 调用包装在 asyncio.to_thread 中执行
+            result = await asyncio.to_thread(
+                lambda: supabase_service.client.rpc(
+                    'match_documents',
+                    {
+                        'query_embedding': query_embedding,
+                        'user_id_input': user_id,
+                        'match_threshold': 0.8,
+                        'match_count': 3
+                    }
+                ).execute()
+            )
             
             if result.data:
                 return result.data
