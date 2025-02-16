@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Supabase 相关配置
     SUPABASE_URL: str
     SUPABASE_SERVICE_KEY: str  # 使用 service_role key 保证安全性
+    SUPABASE_JWT_SECRET: str 
 
     # OpenAI 相关配置
     OPENAI_API_KEY: str
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     # SERPAPI 相关配置
     SERPAPI_API_KEY: str
     SERPAPI_API_KEY = "13123123"
+  
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -57,6 +59,7 @@ log_config_item("SUPABASE_SERVICE_KEY", settings.SUPABASE_SERVICE_KEY)
 log_config_item("OPENAI_API_KEY", settings.OPENAI_API_KEY)
 log_config_item("MODEL_NAME", settings.MODEL_NAME)
 log_config_item("SERPAPI_API_KEY", settings.SERPAPI_API_KEY)
+log_config_item("SUPABASE_JWT_SECRET", settings.SUPABASE_JWT_SECRET)
 
 # 验证所有必需的配置是否已设置
 required_configs = {
@@ -65,6 +68,7 @@ required_configs = {
     "OPENAI_API_KEY": settings.OPENAI_API_KEY,
     "MODEL_NAME": settings.MODEL_NAME,
     "SERPAPI_API_KEY": settings.SERPAPI_API_KEY,
+    "SUPABASE_JWT_SECRET": settings.SUPABASE_JWT_SECRET
 }
 
 for config_name, config_value in required_configs.items():
