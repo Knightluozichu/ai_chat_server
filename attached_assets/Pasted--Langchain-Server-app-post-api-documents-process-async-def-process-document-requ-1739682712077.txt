@@ -1,0 +1,73 @@
+ Langchain Server 后端需要：
+修改文档处理接口
+@app.post("/api/documents/process")
+async def process_document(request: DocumentProcessRequest):
+    try:
+        # 1. 更新文件状态为处理中
+        await update_file_status(request.file_id, "processing")
+        
+        # 2. 开始处理文档
+        result = await process_document_async(request.url)
+        
+        # 3. 处理成功，更新状态
+        await update_file_status(request.file_id, "completed")
+        
+        return {"status": "success"}
+    except Exception as e:
+        # 4. 处理失败，更新状态和错误信息
+        await update_file_status(
+            request.file_id, 
+            "error", 
+            error_message=str(e)
+        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def update_file_status(
+    file_id: str, 
+    status: str, 
+    error_message: str = None
+):
+    """更新文件状态到 Supabase"""
+    supabase_client.table('files')\
+        .update({
+            'processing_status': status,
+            'error_message': error_message,
+            'processed_at': datetime.now().isoformat() if status == 'completed' else None
+        })\
+        .eq('id', file_id)\
+        .execute()
+
+修改状态查询接口
+@app.get("/api/documents/{file_id}/status")
+async def get_document_status(file_id: str):
+    try:
+        # 从 Supabase 获取最新状态
+        result = supabase_client.table('files')\
+            .select('processing_status, error_message')\
+            .eq('id', file_id)\
+            .single()\
+            .execute()
+            
+        return {
+            "status": result.data['processing_status'],
+            "error": result.data.get('error_message')
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+确保错误处理
+# 全局错误处理
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_message = str(exc)
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+    else:
+        status_code = 500
+        # 记录未预期的错误
+        logger.error(f"Unexpected error: {error_message}", exc_info=True)
+    
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": error_message}
+    )
