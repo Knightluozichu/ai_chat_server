@@ -19,6 +19,20 @@ logger = logging.getLogger(__name__)
 # 创建FastAPI应用
 app = FastAPI()
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_message = str(exc)
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+    else:
+        status_code = 500
+        logger.error(f"未预期的错误: {error_message}", exc_info=True)
+    
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": error_message}
+    )
+
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
@@ -129,7 +143,7 @@ async def get_file_status(file_id: str):
     """获取文件处理状态"""
     try:
         result = supabase_service.client.table('files') \
-            .select('processing_status,error_message') \
+            .select('processing_status,error_message,progress,processed_at') \
             .eq('id', file_id) \
             .single() \
             .execute()
@@ -137,7 +151,12 @@ async def get_file_status(file_id: str):
         if not result.data:
             raise HTTPException(status_code=404, detail="文件不存在")
             
-        return result.data
+        return {
+            "status": result.data['processing_status'],
+            "error": result.data.get('error_message'),
+            "progress": result.data.get('progress', 0),
+            "processed_at": result.data.get('processed_at')
+        }
     except Exception as e:
         logger.error(f"获取文件状态失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
