@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -14,6 +13,7 @@ from langchain.tools import Tool
 
 from app.config import settings
 from app.services.supabase import supabase_service
+from app.services.intentService import intent_service, IntentType
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +51,45 @@ class ChatService:
             self.prompt = ChatPromptTemplate.from_messages([
                 (
                     "system",
-                    "你是一个有帮助的AI助手，请用简洁、专业的中文回答问题。"
-                    "搜索时，请找到排名前3的网页，提取其中的正文内容，去除重复或相似的部分，并进行总结和摘要。"
-                    "在回答时，请务必结合最新的搜索信息，如果搜索结果中包含具体的数值，请直接引用。"
+                    """
+                        你是一名在采购招投标领域具有专业知识和丰富经验的智能助手，需要针对不同需求场景（如项目招标信息生成、投标文件评估、采购流程咨询、供应商资格审查等），提供严谨、准确且可追溯的解决方案或信息。你应始终遵循以下要求：
+                        	1.	回答语言
+                        	•	请始终使用中文回答问题。
+                        	2.	搜索与信息处理
+                        	•	当需要检索信息时，应优先查找排名前3的网页或可靠来源，并提取其正文内容。
+                        	•	去除重复或相似的部分，进行简要的总结与摘要。
+                        	•	务必结合最新的搜索信息。如果搜索结果中包含具体数值，请直接引用，避免自行编造或使用虚假数据。
+                        	3.	专业与严谨
+                        	•	所有答案应基于采购招投标的行业标准、法律法规（如《政府采购法》《招标投标法》等）以及权威来源。
+                        	•	引用法律条款、技术规范或标准时，需保证来源可信、内容准确，并在必要时列出参考依据。
+                        	4.	合规与合法
+                        	•	对可能存在法律合规风险的问题，要及时提示并给出可行的合规建议。
+                        	•	不得提供任何违规、舞弊或不公平竞争的引导或暗示。
+                        	5.	准确与可靠
+                        	•	回答中出现的专业术语、数据信息或技术指标应有充分依据，逻辑严整并可追溯。
+                        	•	如遇难以确定的事项，应明确说明不确定性，或提出进一步调查和确认的建议。
+                        	6.	覆盖不同场景
+                        	•	项目招标信息生成：应包括项目概述、采购内容及规格要求、投标人资质、招标时间安排、投标文件递交方式及地点、评标标准等关键信息。
+                        	•	投标文件评估：从商务（报价、条款等）、技术（方案可行性、指标满足度等）、服务（售后、培训等）多角度评估，并指出优劣势。
+                        	•	采购招投标流程咨询：覆盖从项目审批、预算确定到发布招标公告、编制投标文件、开标评标、定标和合同签订的完整流程，并强调各阶段合规要点。
+                        	•	供应商资格审查：包括营业执照、行业资质、业绩、财务、信誉等审查标准，明确判断依据与衡量方式。
+                            •	商品对比与选型：根据需求特点、性能指标、价格、售后服务等因素，提供合理的商品对比分析和选型建议，输出用表格形式。
+                        	7.	客观与中立
+                        	•	回答时不应偏向任何投标方或供应商，也不得表现出不当利益倾斜。
+                        	•	对方案或供应商的比较分析需中立客观，基于事实与数据。
+                        	8.	信息安全与保密
+                        	•	不得泄露用户的机密或敏感信息，对商业秘密材料应妥善保护。
+                        	•	避免在公共答复中出现可识别具体单位或个人的敏感信息。
+                        	9.	可操作性与明确性
+                        	•	回答应条理清晰，尽量给出可执行的步骤或方案。
+                        	•	必要时使用示例或格式化方式（如清单、表格）帮助用户理解和落地实施。
+                        	10.	持续更新与改进
+
+                        	•	保持对最新政策法规、行业实践和市场动态的关注，及时更新知识库。
+                        	•	若发现信息错误或不足，应迅速进行核实与修正，持续优化自身答案质量。
+
+                        请在每一次回答时，严格遵循以上准则，确保输出内容专业、严谨、准确、可靠，并能有效解决采购招投标领域内的各类需求。
+                    """
                 ),
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}")
@@ -134,6 +170,83 @@ class ChatService:
             logger.error(f"获取相关文档失败: {str(e)}")
             return []
 
+    async def _process_query(
+        self,
+        user_input: str,
+        message_history: List[Dict[str, Any]],
+        intent: IntentType,
+        docs: List[Dict] = None
+    ) -> str:
+        """
+        统一处理各类查询请求
+
+        Args:
+            user_input: 用户输入
+            message_history: 历史消息记录
+            intent: 意图类型
+            docs: 相关文档列表（可选）
+
+        Returns:
+            处理后的响应字符串
+        """
+        try:
+            formatted_history = self.format_message_history(message_history)
+            
+            # 根据不同意图构造输入
+            input_map = {
+                IntentType.QUERY: f"请搜索并回答：{user_input}",
+                IntentType.DOCUMENT: self._construct_doc_query(user_input, docs),
+                IntentType.TASK: f"执行任务：{user_input}",
+                IntentType.CHAT: user_input
+            }
+            
+            query_input = input_map.get(intent, user_input)
+            
+            response = await self.agent.ainvoke({
+                "input": query_input,
+                "chat_history": formatted_history
+            })
+            
+            return self._extract_response(response)
+            
+        except Exception as e:
+            logger.error(f"处理{intent.value}请求失败: {str(e)}")
+            raise Exception(f"处理请求失败: {str(e)}")
+
+    def _construct_doc_query(self, user_input: str, docs: List[Dict]) -> str:
+        """构造基于文档的查询"""
+        if not docs:
+            return user_input
+            
+        docs_content = "\n\n".join([
+            f"文档片段 {i+1}:\n{doc['content']}" 
+            for i, doc in enumerate(docs)
+        ])
+        
+        return f"基于以下文档内容回答问题：\n\n{docs_content}\n\n问题：{user_input}"
+
+    def _extract_response(self, response: Any) -> str:
+        """从响应中提取有效内容"""
+        try:
+            if isinstance(response, dict):
+                for key in ["action_input", "output", "response", "answer"]:
+                    if key in response and response[key]:
+                        return str(response[key]).strip()
+                return str(response)
+                
+            if isinstance(response, str):
+                try:
+                    parsed = json.loads(response)
+                    return self._extract_response(parsed)
+                except json.JSONDecodeError:
+                    return response.strip()
+                    
+            return str(response)
+            
+        except Exception as e:
+            logger.error(f"提取响应内容失败: {str(e)}")
+            return str(response)
+
     async def generate_response(
         self, 
         user_input: str, 
@@ -141,79 +254,34 @@ class ChatService:
         user_id: Optional[str] = None
     ) -> str:
         """
-        根据用户输入和历史消息生成 AI 回复，支持RAG检索增强。
+        根据用户输入和历史消息生成 AI 回复
 
         Args:
-            user_input: 用户当前的输入消息。
-            message_history: 数据库获取的历史消息列表。
-            user_id: 可选的用户ID，用于获取相关文档。
+            user_input: 用户输入的文本
+            message_history: 历史消息记录
+            user_id: 用户ID（可选）
 
         Returns:
-            str: 生成的 AI 回复文本。
+            AI 生成的响应文本
 
         Raises:
-            Exception: 当生成回复过程中发生错误时。
+            Exception: 当处理失败时抛出异常
         """
         try:
-            # 获取相关文档片段
-            relevant_docs = []
-            if user_id:
-                relevant_docs = await self._get_relevant_docs(user_input, user_id)
+            # 1. 意图识别
+            intent = await intent_service.classify_intent(user_input)
             
-            # 格式化历史消息
-            formatted_history = self.format_message_history(message_history)
+            # 2. 获取相关文档（仅当有user_id且为文档相关查询时）
+            docs = []
+            if user_id and intent == IntentType.DOCUMENT:
+                docs = await self._get_relevant_docs(user_input, user_id)
             
-            # 构造system提示并加入到历史消息开头
-            system_message = {"role": "system", "content": "你是一个有帮助的AI助手,请用简洁、专业的中文回答问题。"}
+            # 3. 统一处理请求
+            return await self._process_query(user_input, message_history, intent, docs)
             
-            if relevant_docs:
-                docs_content = "\n\n".join([
-                    f"文档片段 {i+1}:\n{doc['content']}" 
-                    for i, doc in enumerate(relevant_docs)
-                ])
-                system_message["content"] += f"\n\n参考以下相关文档内容回答:\n{docs_content}"
-            
-            # 将系统消息插入到历史消息开头
-            formatted_history.insert(0, system_message)
-            
-            # 调用 agent 生成回复
-            try:
-                response = await self.agent.ainvoke({
-                    "input": user_input,
-                    "chat_history": formatted_history,
-                    "timeout": 60  # 添加超时控制
-                })
-                
-                # 规范化响应处理
-                def extract_response(resp):
-                    if isinstance(resp, dict):
-                        for key in ["action_input", "output", "response", "answer"]:
-                            if key in resp and resp[key]:
-                                return str(resp[key]).strip()
-                        return str(resp)
-                    elif isinstance(resp, str):
-                        try:
-                            parsed = json.loads(resp)
-                            return extract_response(parsed)
-                        except json.JSONDecodeError:
-                            return resp.strip()
-                    return str(resp)
-
-                result = extract_response(response)
-                if not result:
-                    raise ValueError("Empty response from agent")
-                    
-                return result
-                    
-            except asyncio.TimeoutError:
-                logger.error("Agent响应超时")
-                raise Exception("生成响应超时，请稍后重试")
-            except Exception as e:
-                logger.error(f"Agent响应解析失败: {str(e)}", exc_info=True)
-                if isinstance(response, (str, dict)):
-                    return extract_response(response)
-                raise Exception(f"生成响应失败: {str(e)}")
-
+        except asyncio.TimeoutError:
+            logger.error("响应超时")
+            raise Exception("生成响应超时，请稍后重试")
         except Exception as e:
             error_msg = f"生成回复失败: {str(e)}"
             logger.error(error_msg)
