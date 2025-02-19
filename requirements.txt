@@ -17,8 +17,6 @@ pytest>=7.4.0  # 用于运行测试
 httpx>=0.24.1  # FastAPI TestClient 需要
 python-multipart>=0.0.6  # FastAPI 文件上传
 pytest-asyncio>=0.21.1  # 异步测试支持
-
-# AI/ML 相关依赖
-transformers>=4.49.0
-torch>=2.6.0  # PyTorch - transformers 的后端依赖
-sentencepiece>=0.2.0  # 用于 transformers 分词
+requests
+aiohttp>=3.8.0
+tenacity>=8.0.0
