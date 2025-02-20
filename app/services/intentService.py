@@ -1,10 +1,8 @@
 from enum import Enum
 from typing import Any, Dict
 from attr import dataclass
-from transformers import pipeline
 import logging
-import requests
-import aiohttp
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -15,50 +13,41 @@ class IntentType(Enum):
     DOCUMENT = "document"   # 文档相关查询
     
 @dataclass
-class HFConfig:
-    API_URL: str = "https://api-inference.huggingface.co/models/joeddav/xlm-roberta-large-xnli"
-    TOKEN: str = "YOUR_HF_TOKEN"  # 请替换为实际的 Token
+class DeepSeekConfig:
+    API_KEY: str = "YOUR_DEEPSEEK_API_KEY"
+    BASE_URL: str = "https://api.deepseek.com"
 
 class IntentService:
-    def __init__(self, config: HFConfig = HFConfig()):
+    def __init__(self, config: DeepSeekConfig = DeepSeekConfig()):
         self.config = config
-        self.headers = {"Authorization": f"Bearer {self.config.TOKEN}"}
-        self.candidate_labels = [
-            "闲聊对话",
-            "信息查询",
-            "任务执行",
-            "文档检索"
-        ]
+        self.client = OpenAI(
+            api_key=self.config.API_KEY,
+            base_url=self.config.BASE_URL
+        )
+        self.system_prompt = """
+你是一个意图分类助手。你需要将用户的输入分类为以下四种类型之一：
+- 闲聊对话：日常交谈、问候、闲聊等
+- 信息查询：询问特定信息、数据或知识
+- 任务执行：请求执行具体任务或操作
+- 文档检索：与文档相关的查询或操作
 
-    async def _query_hf(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+只需返回分类结果，不需要解释。
+"""
+
+    async def classify_intent(self, text: str) -> IntentType:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.config.API_URL,
-                    headers=self.headers,
-                    json=payload,
-                    timeout=10
-                ) as response:
-                    response.raise_for_status()
-                    return await response.json()
-        except aiohttp.ClientError as e:
-            logger.error(f"调用 Hugging Face API 失败: {str(e)}")
-            raise
-        
-    async def classify_intent(self, text: str) -> IntentType: 
-        try:
-            payload = {
-                "inputs": text,
-                "parameters": {
-                    "candidate_labels": self.candidate_labels,
-                    "hypothesis_template": "这是关于{}的内容。"
-                }
-            }
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.1,  # 使用较低的温度以获得更确定的结果
+                max_tokens=10     # 只需要简短的回答
+            )
             
-            result = await self._query_hf(payload)
-            
-            # 获取最高概率的标签
-            label = result['labels'][0]
+            # 获取分类结果
+            result = response.choices[0].message.content.strip().lower()
             
             # 映射到意图类型
             intent_mapping = {
@@ -68,16 +57,16 @@ class IntentService:
                 "文档检索": IntentType.DOCUMENT
             }
             
-            return intent_mapping.get(label, IntentType.CHAT)
+            return intent_mapping.get(result, IntentType.CHAT)
     
         except Exception as e:
             logger.error(f"意图识别失败: {str(e)}")
             return IntentType.CHAT  # 默认返回闲聊类型
 
-# 建议在环境变量中设置 Token
+# 从环境变量中获取配置
 import os
 
-config = HFConfig(
-    TOKEN=os.getenv("HF_API_TOKEN")
+config = DeepSeekConfig(
+    API_KEY=os.getenv("DeepSeek_API_KEY")
 )
 intent_service = IntentService(config)
