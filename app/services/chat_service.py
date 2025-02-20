@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from langchain.agents import AgentType, initialize_agent
 from langchain_community.utilities import SerpAPIWrapper
 from langchain.tools import Tool
+from langchain.utilities import DuckDuckGoSearchAPIWrapper
 
 from app.config import settings
 from app.services.supabase import supabase_service
@@ -37,13 +38,42 @@ class ChatService:
                 api_key=settings.OPENAI_API_KEY
             )
 
-            # 初始化搜索工具
-            search = SerpAPIWrapper(serpapi_api_key=settings.SERPAPI_API_KEY)
+            # # 初始化搜索工具
+            # search = SerpAPIWrapper(serpapi_api_key=settings.SERPAPI_API_KEY)
+            # self.tool = [
+            #     Tool(
+            #         name="Search",
+            #         func=search.run,
+            #         description="当你需要搜索实时信息时使用这个工具"
+            #     )
+            # ]
+            
+           # 初始化搜索工具
+            general_search = DuckDuckGoSearchAPIWrapper(
+                region="cn-zh",
+                max_results=3,
+                time='m',
+                safesearch='moderate'
+            )
+
+            # 初始化商品搜索工具
+            product_search = DuckDuckGoSearchAPIWrapper(
+                region="cn-zh",
+                max_results=5,
+                time='m',
+                safesearch='moderate'
+            )
+
             self.tool = [
                 Tool(
-                    name="Search",
-                    func=search.run,
-                    description="当你需要搜索实时信息时使用这个工具"
+                    name="GeneralSearch",
+                    func=general_search.run,
+                    description="用于搜索一般信息的工具"
+                ),
+                Tool(
+                    name="ProductSearch",
+                    func=lambda q: product_search.run(f"site:https://www.1688.com/ OR site:jd.com OR site:https://www.yiwugo.com/ {q} 销量排行"),
+                    description="用于搜索商品信息的工具，会在主流电商平台搜索商品销量排行"
                 )
             ]
 
@@ -87,8 +117,46 @@ class ChatService:
 
                         	•	保持对最新政策法规、行业实践和市场动态的关注，及时更新知识库。
                         	•	若发现信息错误或不足，应迅速进行核实与修正，持续优化自身答案质量。
+                        
+                        商品搜索与比较指南：
+                            1. 搜索策略
+                               • 使用 ProductSearch 工具在电商平台（1688、京东、义乌购）搜索商品信息
+                               • 优先关注以下信息：
+                                 - 月销量/总销量排名
+                                 - 店铺等级与评分
+                                 - 价格区间与价格趋势
+                                 - 商品规格与参数
+                                 - 买家真实评价
 
+                            2. 数据处理要求
+                               • 销量数据：标注具体时间段（如月销量/年销量）
+                               • 价格信息：注明价格区间，标识是否含税、运费
+                               • 规格参数：突出关键技术指标和质量标准
+                               • 评价信息：筛选有效评价，提炼共性问题
+
+                            3. 比较分析框架
+                               • 必须使用表格形式展示对比信息：
+                                 | 商品名称 | 价格区间 | 销量/评分 | 规格参数 | 质量等级 | 售后服务 | 适用场景 |
+                               • 每个商品至少包含以上7个维度的信息
+                               • 价格区间需标注最低起订量
+
+                            4. 采购建议规范
+                               • 基于以下维度提供选购建议：
+                                 - 性价比分析
+                                      - 质量可靠性
+                                 - 供应商资质
+                                 - 交货能力
+                                 - 售后保障
+                               • 说明不同价位产品的适用场景
+                               • 提供规模采购的议价建议
+
+                            5. 风险提示
+                               • 提示价格异常低的潜在风险
+                               • 标注质量认证缺失的隐患
+                               • 说明售后服务的保障范围
+                               • 注意供应商资质的完整性
                         请在每一次回答时，严格遵循以上准则，确保输出内容专业、严谨、准确、可靠，并能有效解决采购招投标领域内的各类需求。
+                            
                     """
                 ),
                 MessagesPlaceholder(variable_name="chat_history"),
