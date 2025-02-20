@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 import logging
 import os
@@ -22,6 +23,14 @@ class Settings(BaseSettings):
     # SERPAPI 相关配置
     SERPAPI_API_KEY: str
     SERPAPI_API_KEY = "13123123"
+    
+    # 采购领域配置
+    CHAT_INTENT_ENABLED: bool = Field(True, description="是否启用闲聊意图功能")
+    PROCUREMENT_DOMAIN_DICT_PATH: str = Field("app/resources/procurement_dicts/domain_terms.json", description="采购领域词典路径")
+    POLICY_MONITOR_ENDPOINT: str = Field("https://api.policy-monitor.com/v1", description="政策监控服务端点")
+    RISK_KNOWLEDGE_GRAPH_URL: str = Field("http://kg.procurement-risk.com/graphql", description="风险知识图谱API地址")
+    OCR_SERVICE_ENDPOINT: str = Field("https://ocr.procurement.com/v1", description="OCR服务端点")
+    OCR_API_KEY: str = Field(description="OCR服务API密钥")
   
     class Config:
         env_file = ".env"
