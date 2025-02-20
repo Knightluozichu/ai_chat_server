@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from enum import Enum
 from typing import Dict, List, Optional, Union
 from pydantic import BaseModel
@@ -45,13 +48,13 @@ class ProcurementConfig(BaseModel):
     embedding_model: str = Field("text-embedding-3-small", description="OpenAI embedding模型名称")
     intent_confusion_threshold: float = Field(0.15, description="意图混淆检测阈值")
     ocr_endpoint: str = Field(settings.OCR_SERVICE_ENDPOINT, description="OCR服务地址")
+    policy_monitor_endpoint: str = Field("", description="政策监控服务地址")
 
 class IntentService:
     def __init__(self):
         self.config = ProcurementConfig()
         self.domain_terms = self._load_domain_dict()
         self.http_client = httpx.AsyncClient(timeout=30.0)
-        # 初始化OpenAI客户端
         self.oai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
         # 动态生成系统提示词
@@ -97,6 +100,9 @@ class IntentService:
 
     async def _check_policy_updates(self) -> bool:
         """检查政策更新状态"""
+        if not self.config.policy_monitor_endpoint:
+            return False
+            
         try:
             response = await self.http_client.get(
                 f"{self.config.policy_monitor_endpoint}/updates",
@@ -105,9 +111,9 @@ class IntentService:
             )
             if response.status_code == 200:
                 data = response.json()
-                if data["has_update"]:
-                    logger.warning(f"检测到政策更新：{data['update_summary']}")
-                return data["has_update"]
+                if data.get("has_update"):
+                    logger.warning(f"检测到政策更新：{data.get('update_summary')}")
+                return data.get("has_update", False)
             return False
         except httpx.ConnectError:
             logger.error("政策监测服务连接失败，请检查网络或服务状态")
@@ -115,6 +121,25 @@ class IntentService:
         except Exception as e:
             logger.error(f"政策检查异常: {str(e)}")
             return False
+
+    async def _process_attachments(self, files: Optional[List[Dict]] = None) -> str:
+        """处理附件文件（支持PDF/图片）"""
+        if not files:
+            return ""
+            
+        ocr_text = ""
+        for file in files:
+            try:
+                response = await self.http_client.post(
+                    self.config.ocr_endpoint,
+                    files={"file": open(file["path"], "rb")},
+                    headers={"Authorization": f"Bearer {settings.OCR_API_KEY}"}
+                )
+                if response.status_code == 200:
+                    ocr_text += response.json().get("text", "") + "\n"
+            except Exception as e:
+                logger.error(f"OCR处理失败：{str(e)}")
+        return ocr_text.strip()
 
     def _get_embeddings(self, text: str) -> List[float]:
         """获取OpenAI文本嵌入向量"""
@@ -128,45 +153,65 @@ class IntentService:
             logger.error(f"获取文本向量失败: {str(e)}")
             return [0.0] * 1536  # text-embedding-3-small 默认维度
 
-    async def classify_intent(self, text: str) -> Dict[str, any]:
-        """层次化意图分类（三阶段处理）"""
+    async def classify_intent(
+        self, 
+        text: str, 
+        files: Optional[List[Dict]] = None
+    ) -> IntentResult:
+        """
+        层次化意图分类
+        
+        Args:
+            text: 用户输入文本
+            files: 可选的附件文件列表 [{"path": "文件路径", "type": "文件类型"}, ...]
+            
+        Returns:
+            IntentResult: 意图识别结果
+        """
         try:
-            # 第一阶段：多模态处理
-            if hasattr(self, 'attached_files'):
-                ocr_text = await self._process_attachments()
-                text += " " + ocr_text
+            # 1. 多模态处理
+            if files:
+                ocr_text = await self._process_attachments(files)
+                if ocr_text:
+                    text += " " + ocr_text
                 
-            # 第二阶段：OpenAI Embedding特征提取
+            # 2. 特征提取
             embeddings = self._get_embeddings(text)
             
-            # 第二阶段：层次分类
+            # 3. 核心意图分类
             core_intent = await self._classify_core_intent(text)
             
-            # 第二阶段：辅助意图检测
+            # 4. 辅助意图检测
             aux_intents = await self._detect_aux_intents(text)
             
-            # 第三阶段：动态权重调整
+            # 5. 动态权重调整
             if await self._check_policy_updates():
                 logger.info("检测到政策更新，提升合规性相关意图权重")
                 core_intent = self._adjust_weights(core_intent, aux_intents)
 
+            # 6. 计算置信度
             base_score = min(0.85 + len(aux_intents)*0.05, 0.95)
             confidence = round(base_score + self._get_risk_bonus(text), 2)
             
-            return {
-                "core_intent": core_intent.value,
-                "aux_intents": [a.value for a in aux_intents],
-                "confidence_score": confidence,
-                "risk_level": await self._assess_risk(text)
-            }
+            # 7. 风险评估
+            risk_level = await self._assess_risk(text)
+            
+            return IntentResult(
+                core_intent=core_intent.value,
+                aux_intents=[a.value for a in aux_intents],
+                confidence_score=confidence,
+                risk_level=risk_level
+            )
 
         except Exception as e:
             logger.error(f"意图识别流程异常: {str(e)}", exc_info=True)
-            return {
-                "core_intent": CoreIntentType.PROCUREMENT_CONSULT,
-                "aux_intents": [AuxIntentType.UNCERTAINTY_DECLARE],
-                "risk_level": "high"
-            }
+            # 返回默认结果
+            return IntentResult(
+                core_intent=CoreIntentType.PROCUREMENT_CONSULT.value,
+                aux_intents=[AuxIntentType.UNCERTAINTY_DECLARE.value],
+                confidence_score=0.5,
+                risk_level="high"
+            )
 
     def _extract_domain_features(self, text: str) -> Dict[str, float]:
         """提取领域特征（增强版）"""
@@ -185,7 +230,9 @@ class IntentService:
         
         # 标准化特征值
         total_terms = sum(features.values())
-        return {k: v/total_terms if total_terms else 0 for k, v in features.items()}
+        if total_terms:
+            return {k: round(v/total_terms, 4) for k, v in features.items()}
+        return features
 
     def _calculate_conflict(self, text: str) -> float:
         """计算信息冲突率（增强版）"""
@@ -214,7 +261,7 @@ class IntentService:
                       aux_intents: List[AuxIntentType]) -> CoreIntentType:
         """动态调整意图权重（增强版）"""
         # 基础权重调整
-        if datetime.now().month in [3, 6, 9, 12]:  # 审计季
+        if self._is_audit_season():  # 审计季
             if core_intent in [CoreIntentType.PROCUREMENT_CONSULT, CoreIntentType.LAW_INTERPRET]:
                 core_intent = CoreIntentType.LAW_INTERPRET
         
@@ -233,28 +280,16 @@ class IntentService:
         conflict_rules = self.domain_terms.get("intent_conflict_rules", {})
         
         # 计算核心意图与辅助意图的冲突值
+        if not aux_intents:
+            return 0.0
+            
         conflict_score = sum(
             conflict_rules.get(f"{core_intent.name}-{aux.name}", 0) 
             for aux in aux_intents
         )
         
         # 标准化到0-1范围
-        return min(conflict_score / len(aux_intents), 1.0) if aux_intents else 0.0
-
-    async def _process_attachments(self) -> str:
-        """处理附件文件（支持PDF/图片）"""
-        ocr_text = ""
-        for file in self.attached_files:
-            try:
-                response = await self.http_client.post(
-                    self.config.ocr_endpoint,
-                    files={"file": open(file.path, "rb")},
-                    headers={"Authorization": f"Bearer {settings.OCR_API_KEY}"}
-                )
-                ocr_text += response.json().get("text", "") + "\n"
-            except Exception as e:
-                logger.error(f"OCR处理失败：{str(e)}")
-        return ocr_text
+        return min(conflict_score / len(aux_intents), 1.0)
 
     async def _classify_core_intent(self, text: str) -> CoreIntentType:
         """核心意图分类逻辑"""
@@ -268,7 +303,7 @@ class IntentService:
         # 3. OpenAI分类
         try:
             messages = [
-                {"role": "system", "content": "您正在进行采购招投标领域的意图分类。请根据输入文本特征，判断其最可能属于哪个核心意图类别。"},
+                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": f"文本内容：{text}\n\n特征信息：{json.dumps(features, ensure_ascii=False)}"}
             ]
             
@@ -345,7 +380,7 @@ class IntentService:
                 return "high"
 
     def _apply_local_risk_rules(self, text: str, rules: dict) -> str:
-        """应用本地风险规则（已移除区块链验证）"""
+        """应用本地风险规则"""
         risk_score = 0
         
         # 检测异常投标模式（增强版）

@@ -260,7 +260,103 @@ class ChatService:
                 f"- 具体时间安排\n\n"
                 f"项目信息：{t}"
             ),
-            # 其他意图处理器保持不变...
+            # 投标文件评估
+            CoreIntentType.EVALUATE_BID.value: lambda t: (
+                f"请评估以下投标文件，从三个维度进行打分：\n"
+                f"1. 商务分析(30分)：商务条款合理性\n"
+                f"2. 技术评估(50分)：方案可行性、指标满足度\n"
+                f"3. 服务承诺(20分)：售后、培训等\n"
+                f"投标文件内容：{t}"
+            ),
+            # 采购流程咨询
+            CoreIntentType.PROCUREMENT_CONSULT.value: lambda t: (
+                f"请就以下采购问题提供专业咨询：\n"
+                f"1. 结合《政府采购法》相关规定\n"
+                f"2. 提供具体操作步骤\n"
+                f"3. 说明关键时间节点\n"
+                f"4. 指出潜在风险点\n"
+                f"咨询问题：{t}"
+            ),
+            # 供应商资格审查
+            CoreIntentType.SUPPLIER_REVIEW.value: lambda t: (
+                f"请对以下供应商进行资格审查：\n"
+                f"1. 基础资质：营业执照、纳税记录等\n"
+                f"2. 专业资质：行业许可、认证等\n"
+                f"3. 信誉资质：履约评价、违法记录等\n"
+                f"供应商信息：{t}"
+            ),
+            # 商品对比与选型
+            CoreIntentType.PRODUCT_COMPARE.value: lambda t: (
+                f"请对以下商品进行多维度对比分析：\n"
+                f"1. 性能指标(40%)\n"
+                f"2. 价格分析(30%)\n"
+                f"3. 服务体系(20%)\n"
+                f"4. 其他因素(10%)\n"
+                f"商品信息：{t}"
+            ),
+            # 法规条款解读
+            CoreIntentType.LAW_INTERPRET.value: lambda t: (
+                f"请对以下法规条款进行专业解读：\n"
+                f"1. 条款原文解释\n"
+                f"2. 适用场景分析\n"
+                f"3. 实践案例参考\n"
+                f"4. 关联法规说明\n"
+                f"法规内容：{t}"
+            ),
+            # 风险预警
+            CoreIntentType.RISK_ALERT.value: lambda t: (
+                f"请对以下情况进行风险评估：\n"
+                f"1. 识别风险点\n"
+                f"2. 评估风险等级\n"
+                f"3. 提供防范建议\n"
+                f"4. 应急预案建议\n"
+                f"情况描述：{t}"
+            ),
+            # 成本测算
+            CoreIntentType.COST_CALCULATE.value: lambda t: (
+                f"请进行以下成本测算：\n"
+                f"1. 基准价计算\n"
+                f"2. 价格构成分析\n"
+                f"3. 成本压降空间\n"
+                f"4. 市场价格对比\n"
+                f"测算需求：{t}"
+            ),
+            # 文档模板生成
+            CoreIntentType.TEMPLATE_GENERATE.value: lambda t: (
+                f"请生成相关文档模板：\n"
+                f"1. 参考标准文本\n"
+                f"2. 突出关键条款\n"
+                f"3. 预留填充项\n"
+                f"4. 注意事项说明\n"
+                f"模板需求：{t}"
+            ),
+            # 数据验证
+            CoreIntentType.DATA_VERIFY.value: lambda t: (
+                f"请对以下数据进行验证：\n"
+                f"1. 数据真实性核查\n"
+                f"2. 有效期验证\n"
+                f"3. 一致性检查\n"
+                f"4. 异常值分析\n"
+                f"验证内容：{t}"
+            ),
+            # 流程追溯
+            CoreIntentType.PROCESS_TRACE.value: lambda t: (
+                f"请对以下流程进行追溯：\n"
+                f"1. 关键节点记录\n"
+                f"2. 修改历史查询\n"
+                f"3. 责任人确认\n"
+                f"4. 文档完整性\n"
+                f"追溯内容：{t}"
+            ),
+            # 应急处理
+            CoreIntentType.EMERGENCY_HANDLE.value: lambda t: (
+                f"请提供应急处理方案：\n"
+                f"1. 情况紧急程度评估\n"
+                f"2. 应对措施建议\n"
+                f"3. 相关方联系安排\n"
+                f"4. 后续预防建议\n"
+                f"紧急情况：{t}"
+            )
         }
         
         handler = intent_handlers.get(intent_result.core_intent, lambda t: t)
@@ -314,6 +410,43 @@ class ChatService:
             query += f"\n\n处理要求：{enhancement_text}"
         
         return query
+
+    async def _get_relevant_docs(
+        self, query: str, user_id: str
+    ) -> List[Dict]:
+        """
+        获取相关文档片段
+        
+        Args:
+            query: 查询文本
+            user_id: 用户ID
+            
+        Returns:
+            相关文档列表
+        """
+        try:
+            # 生成查询文本的向量嵌入
+            query_embedding = await self.embeddings.aembed_query(query)
+            
+            # 将同步的 Supabase RPC 调用包装在 asyncio.to_thread 中执行
+            result = await asyncio.to_thread(
+                lambda: supabase_service.client.rpc(
+                    'match_documents',
+                    {
+                        'query_embedding': query_embedding,
+                        'user_id_input': user_id,
+                        'match_threshold': 0.8,
+                        'match_count': 3
+                    }
+                ).execute()
+            )
+            
+            if result.data:
+                return result.data
+            return []
+        except Exception as e:
+            logger.error(f"获取相关文档失败: {str(e)}")
+            return []
 
     async def _process_query(
         self,
