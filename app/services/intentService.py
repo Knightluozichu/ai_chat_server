@@ -308,7 +308,7 @@ class IntentService:
             ]
             
             response = self.oai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=messages,
                 temperature=0.2,
                 max_tokens=50
@@ -362,7 +362,7 @@ class IntentService:
                 ]
                 
                 response = self.oai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o-mini",
                     messages=messages,
                     temperature=0.2,
                     max_tokens=10

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     
     # OpenAI 相关配置
     OPENAI_API_KEY: str
-    MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在 .env 中覆盖
+    MODEL_NAME: str = "gpt-4o-mini"  # 默认模型，可在 .env 中覆盖
 
     class Config:
         # 指定 .env 文件路径，便于本地和容器环境统一配置

@@ -27,7 +27,7 @@ def test_settings_load(monkeypatch):
         assert settings.SUPABASE_URL == "https://example.supabase.co"
         assert settings.SUPABASE_SERVICE_KEY == "service_key_value"
         assert settings.OPENAI_API_KEY == "openai_key_value"
-        assert settings.MODEL_NAME == "gpt-3.5-turbo"  # 默认值测试
+        assert settings.MODEL_NAME == "gpt-4o-mini"  # 默认值测试
 
 def test_settings_missing_required(monkeypatch):
     """

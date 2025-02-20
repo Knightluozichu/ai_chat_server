@@ -13,7 +13,7 @@
 
 一、技术选型与整体架构
 	1.	使用 LangChain 框架
-	•	使用 langchain-openai 提供的 ChatOpenAI 类调用 OpenAI 模型（如 gpt-3.5-turbo 或其他配置模型）。
+	•	使用 langchain-openai 提供的 ChatOpenAI 类调用 OpenAI 模型（如 gpt-4o-mini 或其他配置模型）。
 	•	利用 LangChain 内置的 PromptTemplate（如 ChatPromptTemplate）构造对话提示，支持将系统提示、历史消息占位符和当前用户输入组合成最终 prompt。
 	•	采用 StrOutputParser 等解析器对模型返回结果进行解析，确保返回格式为字符串或符合业务要求的结构。
 	2.	异步处理

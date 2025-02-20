@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # OpenAI 相关配置
     OPENAI_API_KEY: str
-    MODEL_NAME: str = "gpt-3.5-turbo"  # 默认模型，可在环境变量中覆盖
+    MODEL_NAME: str = "gpt-4o-mini"  # 默认模型，可在环境变量中覆盖
 
     # SERPAPI 相关配置
     SERPAPI_API_KEY: str
