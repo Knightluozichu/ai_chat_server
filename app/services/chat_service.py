@@ -37,21 +37,6 @@ class ChatService:
         根据settings中的配置决定使用哪个模型和功能。
         """
         try:
-            # 根据provider初始化模型实例
-            if settings.MODEL_PROVIDER == "openai":
-                self.model = ChatOpenAI(
-                    model=settings.MODEL_NAME,
-                    temperature=0.7,
-                    streaming=True,
-                    api_key=settings.OPENAI_API_KEY
-                )
-            else:  # deepseek
-                self.model = ChatOpenAI(
-                    model='deepseek-chat',
-                    api_key=settings.DeepSeek_API_KEY,
-                    base_url='https://api.deepseek.com',
-                )
-            
             # 初始化向量嵌入模型
             self.embeddings = OpenAIEmbeddings(
                 api_key=settings.OPENAI_API_KEY
@@ -147,18 +132,30 @@ class ChatService:
             ])
 
             # 初始化 Agent
-            self.agent = initialize_agent(
-                tools=self.tools,
-                llm=self.model,
-                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
-                verbose=True,
-                agent_kwargs={"prompt": self.prompt}
-            )
+            self.agent = None
             
             logger.info("ChatService 初始化成功")
         except Exception as e:
             logger.error(f"ChatService 初始化失败: {str(e)}")
             raise
+
+    def _get_model(self) -> ChatOpenAI:
+        """
+        根据当前设置获取对应的模型实例
+        """
+        if settings.MODEL_PROVIDER == "openai":
+            return ChatOpenAI(
+                model=settings.MODEL_NAME,
+                temperature=0.7,
+                streaming=True,
+                api_key=settings.OPENAI_API_KEY
+            )
+        else:  # deepseek
+            return ChatOpenAI(
+                model='deepseek-chat',
+                api_key=settings.DeepSeek_API_KEY,
+                base_url='https://api.deepseek.com',
+            )
 
     def format_message_history(
         self, messages: List[Dict[str, Any]]
@@ -423,8 +420,11 @@ class ChatService:
         获取相关文档片段
         """
         try:
+            # 获取当前设置对应的模型实例
+            model = self._get_model()
+            
             # 生成查询文本的向量嵌入
-            query_embedding = await self.embeddings.aembed_query(query)
+            query_embedding = await model.aembed_query(query)
             
             # 将同步的 Supabase RPC 调用包装在 asyncio.to_thread 中执行
             result = await asyncio.to_thread(
@@ -521,6 +521,9 @@ class ChatService:
     ) -> str:
         """根据用户输入和历史消息生成 AI 回复"""
         try:
+            # 获取当前设置对应的模型实例
+            model = self._get_model()
+            
             # 1. 意图识别（根据settings决定是否使用）
             intent_result = None
             if settings.USE_INTENT_DETECTION:
@@ -546,7 +549,7 @@ class ChatService:
                     query_input = self._construct_doc_query(query_input, docs)
             
             # 统一使用 agent 处理请求
-            response = await self.agent.ainvoke({
+            response = await model.ainvoke({
                 "input": query_input,
                 "chat_history": formatted_history
             })
