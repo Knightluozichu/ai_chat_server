@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     SYSTEM_PROMPT: str = ""  # 系统提示词
     USE_WEB_SEARCH: bool = False  # 是否启用网络搜索
     USE_INTENT_DETECTION: bool = True  # 是否启用意图识别
+    
+    DeepSeek_API_KEY:str
 
     # SERPAPI 相关配置
     SERPAPI_API_KEY: str = "13123123"

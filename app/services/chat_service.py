@@ -48,10 +48,11 @@ class ChatService:
                 )
             else:  # deepseek
                 self.model = ChatOpenAI(
+                    base_url="https://api.deepseek.com",
                     model="deepseek-chat",
                     temperature=0.7,
                     streaming=True,
-                    api_key=settings.OPENAI_API_KEY
+                    api_key=settings.DeepSeek_API_KEY
                 )
             
             # 初始化向量嵌入模型
