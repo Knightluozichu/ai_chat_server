@@ -149,11 +149,13 @@ class ChatService:
                - 预估可能风险
         """
         
-        return ChatPromptTemplate.from_messages([
+        messages = [
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{input}")
-        ])
+        ]
+        
+        return ChatPromptTemplate.from_messages(messages)
 
     def format_message_history(
         self, messages: List[Dict[str, Any]]
@@ -162,12 +164,21 @@ class ChatService:
         将消息历史记录格式化为模型所需的格式
         """
         formatted_messages = []
-        for msg in messages:
-            if msg["is_user"]:
-                formatted_messages.append(HumanMessage(content=msg["content"]))
-            else:
-                formatted_messages.append(AIMessage(content=msg["content"]))
-        return formatted_messages
+        try:
+            for msg in messages:
+                content = msg.get("content", "").strip()
+                if not content:
+                    continue
+                    
+                if msg.get("is_user"):
+                    formatted_messages.append(HumanMessage(content=content))
+                else:
+                    formatted_messages.append(AIMessage(content=content))
+                    
+            return formatted_messages
+        except Exception as e:
+            logger.error(f"格式化消息历史失败: {str(e)}")
+            return []
 
     def _build_reasoning_steps(self, text: str, intent_result: IntentResult) -> List[ReasoningStep]:
         """构建推理步骤"""
@@ -529,7 +540,7 @@ class ChatService:
             # 1. 意图识别（根据settings决定是否使用）
             intent_result = None
             if settings.USE_INTENT_DETECTION:
-                intent_result = await intent_service.classify_intent(user_input)
+                intent_result = await intent_service.detect_intent(user_input)
                 
             # 2. 根据意图处理查询
             query_input = user_input
@@ -551,25 +562,32 @@ class ChatService:
             prompt = self._get_prompt_template()
             chain = prompt | model
             
+            # 记录调试信息
+            logger.debug(f"Query input: {query_input}")
+            logger.debug(f"Formatted history length: {len(formatted_history)}")
+            
             response = await chain.ainvoke({
                 "input": query_input,
                 "history": formatted_history
             })
             
-            # 6. 清理响应文本
-            if isinstance(response, dict) and "content" in response:
-                content = response["content"]
+            # 6. 处理响应
+            if isinstance(response, dict):
+                content = response.get("content", str(response))
             elif hasattr(response, "content"):
                 content = response.content
             else:
                 content = str(response)
-                
-            cleaned_response = self._clean_response_text(content)
             
+            logger.debug(f"Raw response type: {type(response)}")
+            logger.debug(f"Extracted content type: {type(content)}")
+            
+            # 7. 清理响应文本
+            cleaned_response = self._clean_response_text(content)
             return cleaned_response
             
         except Exception as e:
-            logger.error(f"生成回复失败: {str(e)}")
+            logger.error(f"生成回复失败: {str(e)}", exc_info=True)
             raise
 
 # 全局服务实例
