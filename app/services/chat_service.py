@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import asyncio
 import json
 import logging
-import asyncio
+import os
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
+
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.agents import AgentType, initialize_agent
-from langchain.tools import Tool
-from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 from app.config import settings
-from app.services.supabase import supabase_service
-from app.services.intentService import (
-    intent_service, IntentResult,
-    CoreIntentType, AuxIntentType
-)
+from app.services.intent_service import IntentService, IntentResult, CoreIntentType, AuxIntentType
+from app.services.supabase_service import SupabaseService
+from app.services.document_service import DocumentService
 
 logger = logging.getLogger(__name__)
 
