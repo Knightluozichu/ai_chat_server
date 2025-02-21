@@ -14,8 +14,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 from app.config import settings
-from app.services.intent_service import IntentService, IntentResult, CoreIntentType, AuxIntentType
-from app.services.supabase_service import SupabaseService
+from app.services.intentService import IntentService, IntentResult, CoreIntentType, AuxIntentType
+from app.services.supabase import SupabaseService
 from app.services.document_service import DocumentService
 
 logger = logging.getLogger(__name__)
