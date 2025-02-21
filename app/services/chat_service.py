@@ -11,7 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentType, initialize_agent
 from langchain_community.utilities import SerpAPIWrapper
 from langchain.tools import Tool
-from langchain.utilities import DuckDuckGoSearchAPIWrapper
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 
 from app.config import settings
 from app.services.supabase import supabase_service

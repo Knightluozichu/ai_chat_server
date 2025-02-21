@@ -8,7 +8,7 @@ import logging
 import json
 import re
 from pydantic import BaseModel, Field
-from config import settings
+from app.config import settings
 import httpx
 from datetime import datetime
 from openai import OpenAI
