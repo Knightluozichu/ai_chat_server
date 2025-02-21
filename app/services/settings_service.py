@@ -1,15 +1,18 @@
 from typing import Optional
 from app.config import settings
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 class SettingsUpdateModel(BaseModel):
-    model_provider: Optional[str] = None
-    system_prompt: Optional[str] = None
-    use_web_search: Optional[bool] = None
-    use_intent_detection: Optional[bool] = None
+    model_provider: Optional[str] = Field(None, alias="modelProvider")
+    system_prompt: Optional[str] = Field(None, alias="systemPrompt")
+    use_web_search: Optional[bool] = Field(None, alias="useWebSearch")
+    use_intent_detection: Optional[bool] = Field(None, alias="useIntentDetection")
+
+    class Config:
+        allow_population_by_field_name = True
 
 class SettingsService:
     def __init__(self):
