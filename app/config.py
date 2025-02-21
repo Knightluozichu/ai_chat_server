@@ -1,3 +1,4 @@
+from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings
 import logging
@@ -10,6 +11,10 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     # 环境标识，"development" 表示本地开发环境，"production" 表示部署环境
     ENVIRONMENT: str = "development"
+    DEBUG: bool = False
+
+    # 数据库配置
+    DATABASE_URL: str = "postgresql://user:pass@localhost:5432/db"
 
     # Supabase 相关配置
     SUPABASE_URL: str
@@ -19,22 +24,47 @@ class Settings(BaseSettings):
     # OpenAI 相关配置
     OPENAI_API_KEY: str
     MODEL_NAME: str = "gpt-4o-mini"  # 默认模型，可在环境变量中覆盖
+    MODEL_PROVIDER: str = "deepseek"  # 模型提供商，可选 deepseek 或 openai
+    SYSTEM_PROMPT: str = ""  # 系统提示词
+    USE_WEB_SEARCH: bool = False  # 是否启用网络搜索
+    USE_INTENT_DETECTION: bool = True  # 是否启用意图识别
 
     # SERPAPI 相关配置
-    SERPAPI_API_KEY: str
-    SERPAPI_API_KEY = "13123123"
+    SERPAPI_API_KEY: str = "13123123"
     
     # 采购领域配置
     CHAT_INTENT_ENABLED: bool = Field(True, description="是否启用闲聊意图功能")
-    PROCUREMENT_DOMAIN_DICT_PATH: str = Field("app/resources/procurement_dicts/domain_terms.json", description="采购领域词典路径")
-    POLICY_MONITOR_ENDPOINT: str = Field("https://api.policy-monitor.com/v1", description="政策监控服务端点")
-    RISK_KNOWLEDGE_GRAPH_URL: str = Field("http://kg.procurement-risk.com/graphql", description="风险知识图谱API地址")
-    OCR_SERVICE_ENDPOINT: str = Field("https://ocr.procurement.com/v1", description="OCR服务端点")
+    PROCUREMENT_DOMAIN_DICT_PATH: str = Field(
+        str(Path(__file__).parent / "resources/procurement_dicts/domain_terms.json"),
+        description="采购领域词典路径"
+    )
+    INTENT_MODEL_PATH: str = Field(
+        str(Path(__file__).parent / "models/bert-wwm-procurement"),
+        description="意图识别模型路径"
+    )
+    PROCUREMENT_RISK_MODE: str = Field("LOCAL", description="风险评估模式")
+    LOCAL_RISK_RULES_PATH: str = Field(
+        str(Path(__file__).parent / "resources/procurement_dicts/risk_rules.json"),
+        description="本地风险规则路径"
+    )
+    POLICY_MONITOR_ENDPOINT: str = Field(
+        "http://policy-monitor.procurement.internal",
+        description="政策监控服务端点"
+    )
+    RISK_KNOWLEDGE_GRAPH_URL: str = Field(
+        "http://kg.procurement-risk.com/graphql",
+        description="风险知识图谱API地址"
+    )
+    OCR_SERVICE_ENDPOINT: str = Field(
+        "https://ocr.procurement.com/v1",
+        description="OCR服务端点"
+    )
     OCR_API_KEY: str = Field(description="OCR服务API密钥")
   
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        case_sensitive = True
 
 # 全局配置实例，pydantic 会自动优先使用系统环境变量，未设置时则从 .env 中加载
 settings = Settings()
@@ -67,8 +97,10 @@ log_config_item("SUPABASE_URL", settings.SUPABASE_URL)
 log_config_item("SUPABASE_SERVICE_KEY", settings.SUPABASE_SERVICE_KEY)
 log_config_item("OPENAI_API_KEY", settings.OPENAI_API_KEY)
 log_config_item("MODEL_NAME", settings.MODEL_NAME)
+log_config_item("MODEL_PROVIDER", settings.MODEL_PROVIDER)
 log_config_item("SERPAPI_API_KEY", settings.SERPAPI_API_KEY)
 log_config_item("SUPABASE_JWT_SECRET", settings.SUPABASE_JWT_SECRET)
+log_config_item("OCR_API_KEY", settings.OCR_API_KEY)
 
 # 验证所有必需的配置是否已设置
 required_configs = {
@@ -76,6 +108,7 @@ required_configs = {
     "SUPABASE_SERVICE_KEY": settings.SUPABASE_SERVICE_KEY,
     "OPENAI_API_KEY": settings.OPENAI_API_KEY,
     "MODEL_NAME": settings.MODEL_NAME,
+    "MODEL_PROVIDER": settings.MODEL_PROVIDER,
     "SERPAPI_API_KEY": settings.SERPAPI_API_KEY,
     "SUPABASE_JWT_SECRET": settings.SUPABASE_JWT_SECRET
 }

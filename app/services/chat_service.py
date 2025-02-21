@@ -34,57 +34,70 @@ class ReasoningStep:
 class ChatService:
     def __init__(self):
         """
-        初始化 Chat 服务，创建 ChatOpenAI 模型实例和 Prompt 模板。
-        Prompt 中要求回答时结合最新的搜索信息，确保回复包含最新的数据和时间节点。
+        初始化 Chat 服务，创建模型实例和 Prompt 模板。
+        根据settings中的配置决定使用哪个模型和功能。
         """
         try:
-            # 初始化 OpenAI 模型实例
-            self.model = ChatOpenAI(
-                model=settings.MODEL_NAME,
-                temperature=0.7,
-                streaming=True,
-                api_key=settings.OPENAI_API_KEY
-            )
+            # 根据provider初始化模型实例
+            if settings.MODEL_PROVIDER == "openai":
+                self.model = ChatOpenAI(
+                    model=settings.MODEL_NAME,
+                    temperature=0.7,
+                    streaming=True,
+                    api_key=settings.OPENAI_API_KEY
+                )
+            else:  # deepseek
+                self.model = ChatOpenAI(
+                    model="deepseek-chat",
+                    temperature=0.7,
+                    streaming=True,
+                    api_key=settings.OPENAI_API_KEY
+                )
             
             # 初始化向量嵌入模型
             self.embeddings = OpenAIEmbeddings(
                 api_key=settings.OPENAI_API_KEY
             )
 
-            # 初始化搜索工具
-            general_search = DuckDuckGoSearchAPIWrapper(
-                region="cn-zh",
-                max_results=20,
-                time='m',
-                safesearch='moderate'
-            )
-
-            # 初始化商品搜索工具
-            product_search = DuckDuckGoSearchAPIWrapper(
-                region="cn-zh",
-                max_results=20,
-                time='m',
-                safesearch='moderate'
-            )
-
-            self.tool = [
-                Tool(
-                    name="GeneralSearch",
-                    func=general_search.run,
-                    description="用于搜索一般信息的工具"
-                ),
-                Tool(
-                    name="ProductSearch",
-                    func=lambda q: product_search.run(f"site:https://www.1688.com/ OR site:jd.com OR site:https://www.yiwugo.com/ {q} 销量排行"),
-                    description="用于搜索商品信息的工具，会在主流电商平台搜索商品销量排行"
+            # 初始化工具列表
+            self.tools = []
+            
+            # 根据settings决定是否启用网络搜索
+            if settings.USE_WEB_SEARCH:
+                # 初始化搜索工具
+                general_search = DuckDuckGoSearchAPIWrapper(
+                    region="cn-zh",
+                    max_results=20,
+                    time='m',
+                    safesearch='moderate'
                 )
-            ]
 
-            # 构造 Prompt 模板
+                # 初始化商品搜索工具
+                product_search = DuckDuckGoSearchAPIWrapper(
+                    region="cn-zh",
+                    max_results=20,
+                    time='m',
+                    safesearch='moderate'
+                )
+
+                self.tools.extend([
+                    Tool(
+                        name="GeneralSearch",
+                        func=general_search.run,
+                        description="用于搜索一般信息的工具"
+                    ),
+                    Tool(
+                        name="ProductSearch",
+                        func=lambda q: product_search.run(f"site:https://www.1688.com/ OR site:jd.com OR site:https://www.yiwugo.com/ {q} 销量排行"),
+                        description="用于搜索商品信息的工具，会在主流电商平台搜索商品销量排行"
+                    )
+                ])
+
+            # 构造 Prompt 模板，使用settings中的system_prompt
             self.prompt = ChatPromptTemplate.from_messages([
                 (
-                    "system",
-                    """                    
+                    "system",  
+                    settings.SYSTEM_PROMPT if settings.SYSTEM_PROMPT else """                    
                         角色设定
                         你是一名在采购招投标领域具备深厚专业知识与丰富实践经验的智能助手，能够进行复杂推理与精准决策。
                         针对不同需求场景（如项目招标信息生成、投标文件评估、采购流程咨询、供应商资格审查等），需提供严谨、准确且可追溯的解决方案或信息。
@@ -137,7 +150,7 @@ class ChatService:
 
             # 初始化 Agent
             self.agent = initialize_agent(
-                tools=self.tool,
+                tools=self.tools,
                 llm=self.model,
                 agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
                 verbose=True,
@@ -154,12 +167,6 @@ class ChatService:
     ) -> List[Dict[str, str]]:
         """
         将数据库中的消息记录转换为 LangChain 格式。
-
-        Args:
-            messages: 列表，每个消息包含 "content" 和 "is_user" 字段。
-
-        Returns:
-            格式化后的消息列表，每个消息包含 "role" 和 "content" 字段。
         """
         try:
             formatted = []
@@ -416,13 +423,6 @@ class ChatService:
     ) -> List[Dict]:
         """
         获取相关文档片段
-        
-        Args:
-            query: 查询文本
-            user_id: 用户ID
-            
-        Returns:
-            相关文档列表
         """
         try:
             # 生成查询文本的向量嵌入
@@ -447,42 +447,6 @@ class ChatService:
         except Exception as e:
             logger.error(f"获取相关文档失败: {str(e)}")
             return []
-
-    async def _process_query(
-        self,
-        user_input: str,
-        message_history: List[Dict[str, Any]],
-        intent_result: IntentResult,
-        docs: List[Dict] = None
-    ) -> str:
-        """统一处理各类查询请求"""
-        try:
-            formatted_history = self.format_message_history(message_history)
-            
-            # 1. 处理核心意图，获取查询和推理过程
-            query_input, reasoning = self._process_core_intent(user_input, intent_result)
-            
-            # 2. 基于文档构造查询
-            if docs:
-                query_input = self._construct_doc_query(query_input, docs)
-                
-            # 3. 增强查询
-            query_input = self._enhance_with_aux_intents(query_input, intent_result)
-            
-            # 4. 添加推理过程
-            query_input = f"{reasoning}\n\n{query_input}"
-            
-            # 5. 执行查询
-            response = await self.agent.ainvoke({
-                "input": query_input,
-                "chat_history": formatted_history
-            })
-            
-            return self._extract_response(response)
-            
-        except Exception as e:
-            logger.error(f"处理请求失败: {str(e)}")
-            raise Exception(f"处理请求失败: {str(e)}")
 
     def _construct_doc_query(self, user_input: str, docs: List[Dict]) -> str:
         """构造基于文档的查询"""
@@ -563,8 +527,10 @@ class ChatService:
     ) -> str:
         """根据用户输入和历史消息生成 AI 回复"""
         try:
-            # 1. 意图识别
-            intent_result = await intent_service.classify_intent(user_input)
+            # 1. 意图识别（根据settings决定是否使用）
+            intent_result = None
+            if settings.USE_INTENT_DETECTION:
+                intent_result = await intent_service.classify_intent(user_input)
             
             # 2. 获取相关文档（仅当有user_id且存在文档时）
             docs = []
@@ -572,7 +538,25 @@ class ChatService:
                 docs = await self._get_relevant_docs(user_input, user_id)
             
             # 3. 统一处理请求
-            return await self._process_query(user_input, message_history, intent_result, docs)
+            formatted_history = self.format_message_history(message_history)
+            
+            if intent_result:
+                query_input, reasoning = self._process_core_intent(user_input, intent_result)
+                if docs:
+                    query_input = self._construct_doc_query(query_input, docs)
+                query_input = self._enhance_with_aux_intents(query_input, intent_result)
+                query_input = f"{reasoning}\n\n{query_input}"
+            else:
+                query_input = user_input
+                if docs:
+                    query_input = self._construct_doc_query(query_input, docs)
+            
+            response = await self.agent.ainvoke({
+                "input": query_input,
+                "chat_history": formatted_history
+            })
+            
+            return self._extract_response(response)
             
         except asyncio.TimeoutError:
             logger.error("响应超时")

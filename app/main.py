@@ -11,6 +11,7 @@ import logging
 from app.services.supabase import supabase_service
 from app.services.chat_service import chat_service
 from app.services.document_service import document_service
+from app.services.settings_service import settings_service, SettingsUpdateModel
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,12 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     user_id: str
     message: str
+
+class SettingsResponse(BaseModel):
+    model_provider: str
+    system_prompt: str
+    use_web_search: bool
+    use_intent_detection: bool
 
 @app.post("/api/chat/{conversation_id}")
 async def chat_endpoint(
@@ -167,6 +174,31 @@ async def root():
     根路径 - 快速健康检查
     """
     return {"status": "ok"}
+
+@app.get("/api/settings", response_model=SettingsResponse)
+async def get_settings():
+    """
+    获取当前系统设置
+    """
+    try:
+        return await settings_service.get_settings()
+    except Exception as e:
+        logger.error(f"获取设置失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/settings", response_model=SettingsResponse)
+async def update_settings(settings: SettingsUpdateModel):
+    """
+    更新系统设置
+    """
+    try:
+        return await settings_service.update_settings(settings)
+    except ValueError as e:
+        logger.error(f"设置值无效: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"更新设置失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)
