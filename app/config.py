@@ -55,12 +55,21 @@ class Settings(BaseSettings):
         "http://kg.procurement-risk.com/graphql",
         description="风险知识图谱API地址"
     )
-    # OCR 相关配置（暂时注释掉，非必需功能）
-    # OCR_SERVICE_ENDPOINT: str = Field(
-    #     "https://ocr.procurement.com/v1",
-    #     description="OCR服务端点"
-    # )
-    # OCR_API_KEY: str = Field(description="OCR服务API密钥")
+    # OCR 相关配置
+    OCR_SERVICE_ENDPOINT: str = Field(
+        "",  # 如果未配置则默认为空字符串
+        description="OCR服务端点"
+    )
+    OCR_API_KEY: str = Field(
+        "",  # 如果未配置则默认为空字符串
+        description="OCR服务API密钥"
+    )
+    
+    # 监控服务配置
+    POLICY_MONITOR_API_KEY: str = Field(
+        "",  # 如果未配置则默认为空字符串
+        description="政策监控服务API密钥"
+    )
   
     class Config:
         env_file = ".env"

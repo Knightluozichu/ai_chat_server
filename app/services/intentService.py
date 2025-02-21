@@ -47,7 +47,7 @@ class ProcurementConfig(BaseModel):
     audit_season_weight: float = Field(1.2, description="审计季合规意图权重加成")
     embedding_model: str = Field("text-embedding-3-small", description="OpenAI embedding模型名称")
     intent_confusion_threshold: float = Field(0.15, description="意图混淆检测阈值")
-    ocr_endpoint: str = Field(settings.OCR_SERVICE_ENDPOINT, description="OCR服务地址")
+    ocr_endpoint: str = Field("", description="OCR服务地址")  # 默认为空字符串
     policy_monitor_endpoint: str = Field("", description="政策监控服务地址")
 
 class IntentService:
@@ -104,6 +104,10 @@ class IntentService:
             return False
             
         try:
+            if not settings.POLICY_MONITOR_API_KEY:
+                logger.debug("未配置政策监控服务API密钥，跳过政策更新检查")
+                return False
+                
             response = await self.http_client.get(
                 f"{self.config.policy_monitor_endpoint}/updates",
                 params={"last_check": datetime.now().isoformat()},
@@ -130,8 +134,12 @@ class IntentService:
         ocr_text = ""
         for file in files:
             try:
+                if not settings.OCR_SERVICE_ENDPOINT or not settings.OCR_API_KEY:
+                    logger.debug("未配置OCR服务，跳过OCR处理")
+                    continue
+                    
                 response = await self.http_client.post(
-                    self.config.ocr_endpoint,
+                    settings.OCR_SERVICE_ENDPOINT,
                     files={"file": open(file["path"], "rb")},
                     headers={"Authorization": f"Bearer {settings.OCR_API_KEY}"}
                 )
