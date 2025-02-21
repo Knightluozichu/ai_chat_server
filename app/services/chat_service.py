@@ -38,7 +38,7 @@ class ChatService:
         """验证API密钥是否正确配置"""
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY not configured")
-        if not settings.DeepSeek_API_KEY:
+        if not settings.DEEPSEEK_API_KEY:  # 修正变量名
             raise ValueError("DEEPSEEK_API_KEY not configured")
 
     def __init__(self):
@@ -93,9 +93,7 @@ class ChatService:
             raise
 
     def _get_model(self) -> ChatOpenAI:
-        """
-        根据当前设置获取对应的模型实例
-        """
+        """根据当前设置获取对应的模型实例"""
         try:
             if settings.MODEL_PROVIDER == "openai":
                 return ChatOpenAI(
@@ -106,11 +104,11 @@ class ChatService:
                 )
             else:  # deepseek
                 return ChatOpenAI(
-                    model='deepseek-reasoner',
-                    api_key=settings.DeepSeek_API_KEY,
+                    model='deepseek-chat',
+                    api_key=settings.DEEPSEEK_API_KEY,  # 使用修正后的变量名
                     base_url='https://api.deepseek.com/v1',
                     temperature=0.7,
-                    streaming=True  # 添加streaming参数保持一致
+                    streaming=True
                 )
         except Exception as e:
             logger.error(f"模型初始化失败: {str(e)}")

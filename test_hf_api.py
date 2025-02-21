@@ -18,7 +18,7 @@ load_dotenv()
 @pytest.fixture
 def intent_service():
     config = DeepSeekConfig(
-        API_KEY=os.getenv("DeepSeek_API_KEY")
+        API_KEY=os.getenv("DEEPSEEK_API_KEY")
     )
     return IntentService(config)
 
@@ -50,7 +50,7 @@ async def test_intent_classification(intent_service):
 if __name__ == "__main__":
     # 直接运行测试
     async def main():
-        config = DeepSeekConfig(API_KEY=os.getenv("DeepSeek_API_KEY"))
+        config = DeepSeekConfig(API_KEY=os.getenv("DEEPSEEK_API_KEY"))
         service = IntentService(config)
         
         # 测试单个查询
