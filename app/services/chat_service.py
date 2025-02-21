@@ -15,8 +15,12 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 from app.config import settings
 from app.services.intentService import intent_service,IntentService, IntentResult, CoreIntentType, AuxIntentType
-from app.services.supabase import SupabaseService
+from app.services.supabase import SupabaseService,supabase_service
 from app.services.document_service import DocumentService
+from langchain_community.tools import Tool
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
+from langchain_community.vectorstores import SupabaseVectorStore
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +34,20 @@ class ReasoningStep:
     conclusion: Optional[str] = None
 
 class ChatService:
+    def _validate_api_keys(self):
+        """验证API密钥是否正确配置"""
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY not configured")
+        if not settings.DeepSeek_API_KEY:
+            raise ValueError("DEEPSEEK_API_KEY not configured")
+
     def __init__(self):
         """
         初始化 Chat 服务，创建模型实例。
         根据settings中的配置决定使用哪个模型和功能。
         """
         try:
+            self._validate_api_keys()
             # 初始化向量嵌入模型
             self.embeddings = OpenAIEmbeddings(
                 api_key=settings.OPENAI_API_KEY
@@ -474,62 +486,79 @@ class ChatService:
         user_id: Optional[str] = None
     ) -> str:
         """根据用户输入和历史消息生成 AI 回复"""
-        try:
-            # 获取当前设置对应的模型实例
-            model = self._get_model()
-            
-            # 1. 意图识别（根据settings决定是否使用）
-            intent_result = None
-            if settings.USE_INTENT_DETECTION:
-                intent_result = await intent_service.classify_intent(user_input)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # 获取当前设置对应的模型实例
+                model = self._get_model()
                 
-            # 2. 根据意图处理查询
-            query_input = user_input
-            if intent_result and intent_result.core_intent:
-                query_input = self._process_core_intent(user_input, intent_result)
-                if intent_result.aux_intents:
-                    query_input = self._enhance_with_aux_intents(query_input, intent_result)
+                # 1. 意图识别（根据settings决定是否使用）
+                intent_result = None
+                if settings.USE_INTENT_DETECTION:
+                    intent_result = await intent_service.classify_intent(user_input)
+                
+                # 2. 根据意图处理查询
+                query_input = user_input
+                if intent_result and intent_result.core_intent:
+                    query_input = self._process_core_intent(user_input, intent_result)
+                    if intent_result.aux_intents:
+                        query_input = self._enhance_with_aux_intents(query_input, intent_result)
             
-            # 3. 格式化历史消息
-            formatted_history = self.format_message_history(message_history)
+                # 3. 格式化历史消息
+                formatted_history = self.format_message_history(message_history)
+                
+                # 4. 如果启用了网络搜索，获取相关文档
+                if settings.USE_WEB_SEARCH and user_id:
+                    docs = await self._get_relevant_docs(query_input, user_id)
+                    if docs:
+                        query_input = self._construct_doc_query(query_input, docs)
             
-            # 4. 如果启用了网络搜索，获取相关文档
-            if settings.USE_WEB_SEARCH and user_id:
-                docs = await self._get_relevant_docs(query_input, user_id)
-                if docs:
-                    query_input = self._construct_doc_query(query_input, docs)
-            
-            # 5. 创建 prompt 并生成回复
-            prompt = self._get_prompt_template()
-            chain = prompt | model
-            
-            # 记录调试信息
-            logger.debug(f"Query input: {query_input}")
-            logger.debug(f"Formatted history length: {len(formatted_history)}")
-            
-            response = await chain.ainvoke({
-                "input": query_input,
-                "history": formatted_history
-            })
-            
-            # 6. 处理响应
-            if isinstance(response, dict):
-                content = response.get("content", str(response))
-            elif hasattr(response, "content"):
-                content = response.content
-            else:
-                content = str(response)
-            
-            logger.debug(f"Raw response type: {type(response)}")
-            logger.debug(f"Extracted content type: {type(content)}")
-            
-            # 7. 清理响应文本
-            cleaned_response = self._clean_response_text(content)
-            return cleaned_response
-            
-        except Exception as e:
-            logger.error(f"生成回复失败: {str(e)}", exc_info=True)
-            raise
+                # 5. 创建 prompt 并生成回复
+                prompt = self._get_prompt_template()
+                chain = prompt | model
+                
+                # 记录调试信息
+                logger.debug(f"尝试 {attempt + 1}: 发送请求")
+                logger.debug(f"Query input: {query_input}")
+                logger.debug(f"History length: {len(formatted_history)}")
+                
+                response = await chain.ainvoke({
+                    "input": query_input,
+                    "history": formatted_history
+                })
+                
+                # 6. 处理响应
+                if isinstance(response, dict):
+                    content = response.get("content", str(response))
+                elif hasattr(response, "content"):
+                    content = response.content
+                else:
+                    content = str(response)
+                
+                if not content:
+                    raise ValueError("无法从响应中提取内容")
+                
+                logger.debug(f"Raw response type: {type(response)}")
+                logger.debug(f"Extracted content type: {type(content)}")
+                
+                # 7. 清理响应文本
+                cleaned_response = self._clean_response_text(content)
+                logger.debug("成功生成响应")
+                return cleaned_response
+                
+            except json.JSONDecodeError as json_err:
+                logger.warning(f"JSON解析错误 (尝试 {attempt + 1}): {str(json_err)}")
+                if attempt == max_retries - 1:
+                    raise
+                await asyncio.sleep(1 * (attempt + 1))
+
+            except Exception as e:
+                logger.warning(f"请求失败 (尝试 {attempt + 1}): {str(e)}")
+                if attempt == max_retries - 1:
+                    raise
+                await asyncio.sleep(1 * (attempt + 1))
+
+        raise Exception(f"在 {max_retries} 次尝试后仍然失败")
 
 # 全局服务实例
 chat_service = ChatService()
