@@ -6,8 +6,7 @@ import logging
 import asyncio
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
-from langchain_openai import OpenAIEmbeddings
-from openai import OpenAI
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentType, initialize_agent
 from langchain.tools import Tool
@@ -40,7 +39,6 @@ class ChatService:
         try:
             # 根据provider初始化模型实例
             if settings.MODEL_PROVIDER == "openai":
-                from langchain_openai import ChatOpenAI
                 self.model = ChatOpenAI(
                     model=settings.MODEL_NAME,
                     temperature=0.7,
@@ -48,9 +46,10 @@ class ChatService:
                     api_key=settings.OPENAI_API_KEY
                 )
             else:  # deepseek
-                self.client = OpenAI(
+                self.model = ChatOpenAI(
+                    model='deepseek-chat',
                     api_key=settings.DeepSeek_API_KEY,
-                    base_url="https://api.deepseek.com"
+                    base_url='https://api.deepseek.com',
                 )
             
             # 初始化向量嵌入模型
@@ -148,14 +147,13 @@ class ChatService:
             ])
 
             # 初始化 Agent
-            if settings.MODEL_PROVIDER == "openai":
-                self.agent = initialize_agent(
-                    tools=self.tools,
-                    llm=self.model,
-                    agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
-                    verbose=True,
-                    agent_kwargs={"prompt": self.prompt}
-                )
+            self.agent = initialize_agent(
+                tools=self.tools,
+                llm=self.model,
+                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                verbose=True,
+                agent_kwargs={"prompt": self.prompt}
+            )
             
             logger.info("ChatService 初始化成功")
         except Exception as e:
@@ -256,15 +254,15 @@ class ChatService:
         intent_handlers = {
             # 项目招标信息生成
             CoreIntentType.GENERATE_BID.value: lambda t: (
-                f"让我们按照以下步骤来生成招标信息：\n\n"
+                f"让我们按照以下步骤来生成招标信息：\n"
                 f"第一步，我们需要确定项目基本信息：\n"
                 f"- 项目背景和采购需求\n"
-                f"- 投标人资质要求\n\n"
+                f"- 投标人资质要求\n"
                 f"第二步，让我们细化技术规范：\n"
                 f"- 技术规格指标\n"
-                f"- 评标标准设计\n\n"
+                f"- 评标标准设计\n"
                 f"最后，我们来规划时间节点：\n"
-                f"- 具体时间安排\n\n"
+                f"- 具体时间安排\n"
                 f"项目信息：{t}"
             ),
             # 投标文件评估
@@ -414,7 +412,7 @@ class ChatService:
                 enhancement_text += f"\n{transition}\n"
                 enhancement_text += "\n".join(f"- {e}" for e in enhancement_group)
             
-            query += f"\n\n处理要求：{enhancement_text}"
+            query += f"\n处理要求：{enhancement_text}"
         
         return query
 
@@ -453,15 +451,15 @@ class ChatService:
         if not docs:
             return user_input
             
-        docs_content = "\n\n".join([
+        docs_content = "\n".join([
             f"文档片段 {i+1}:\n{doc['content']}" 
             for i, doc in enumerate(docs)
         ])
         
         return (
-            f"基于以下参考资料：\n\n"
-            f"{docs_content}\n\n"
-            f"请回答问题：\n{user_input}\n\n"
+            f"基于以下参考资料：\n"
+            f"{docs_content}\n"
+            f"请回答问题：\n{user_input}\n"
             f"注意：\n"
             f"1. 请优先使用文档中的信息\n"
             f"2. 如有信息冲突，请说明原因\n"
@@ -480,11 +478,7 @@ class ChatService:
                 if not raw_content:
                     raw_content = str(response)
             elif isinstance(response, str):
-                try:
-                    parsed = json.loads(response)
-                    return self._extract_response(parsed)
-                except json.JSONDecodeError:
-                    raw_content = response.strip()
+                raw_content = response.strip()
             else:
                 raw_content = str(response)
 
@@ -545,29 +539,17 @@ class ChatService:
                 if docs:
                     query_input = self._construct_doc_query(query_input, docs)
                 query_input = self._enhance_with_aux_intents(query_input, intent_result)
-                query_input = f"{reasoning}\n\n{query_input}"
+                query_input = f"{reasoning}\n{query_input}"
             else:
                 query_input = user_input
                 if docs:
                     query_input = self._construct_doc_query(query_input, docs)
             
-            # 使用不同的生成方式
-            if settings.MODEL_PROVIDER == "openai":
-                response = await self.agent.ainvoke({
-                    "input": query_input,
-                    "chat_history": formatted_history
-                })
-            else:  # deepseek
-                messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}]
-                messages.extend(formatted_history)
-                messages.append({"role": "user", "content": query_input})
-                
-                completion = self.client.chat.completions.create(
-                    model="deepseek-chat",
-                    messages=messages,
-                    stream=False
-                )
-                response = completion.choices[0].message.content
+            # 统一使用 agent 处理请求
+            response = await self.agent.ainvoke({
+                "input": query_input,
+                "chat_history": formatted_history
+            })
             
             return self._extract_response(response)
             
