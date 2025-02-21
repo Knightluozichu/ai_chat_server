@@ -95,7 +95,8 @@ class ChatService:
             return ChatOpenAI(
                 model='deepseek-chat',
                 api_key=settings.DeepSeek_API_KEY,
-                base_url='https://api.deepseek.com',
+                base_url='https://api.deepseek.com/v1',
+                temperature=0.7
             )
 
     def _get_prompt_template(self) -> ChatPromptTemplate:
