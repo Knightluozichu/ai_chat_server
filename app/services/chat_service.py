@@ -6,10 +6,10 @@ import logging
 import asyncio
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
+from openai import OpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentType, initialize_agent
-from langchain_community.utilities import SerpAPIWrapper
 from langchain.tools import Tool
 from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 
@@ -40,6 +40,7 @@ class ChatService:
         try:
             # 根据provider初始化模型实例
             if settings.MODEL_PROVIDER == "openai":
+                from langchain_openai import ChatOpenAI
                 self.model = ChatOpenAI(
                     model=settings.MODEL_NAME,
                     temperature=0.7,
@@ -47,12 +48,9 @@ class ChatService:
                     api_key=settings.OPENAI_API_KEY
                 )
             else:  # deepseek
-                self.model = ChatOpenAI(
-                    base_url="https://api.deepseek.com",
-                    model="deepseek-chat",
-                    temperature=0.7,
-                    streaming=True,
-                    api_key=settings.DeepSeek_API_KEY
+                self.client = OpenAI(
+                    api_key=settings.DeepSeek_API_KEY,
+                    base_url="https://api.deepseek.com"
                 )
             
             # 初始化向量嵌入模型
@@ -150,13 +148,14 @@ class ChatService:
             ])
 
             # 初始化 Agent
-            self.agent = initialize_agent(
-                tools=self.tools,
-                llm=self.model,
-                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
-                verbose=True,
-                agent_kwargs={"prompt": self.prompt}
-            )
+            if settings.MODEL_PROVIDER == "openai":
+                self.agent = initialize_agent(
+                    tools=self.tools,
+                    llm=self.model,
+                    agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                    verbose=True,
+                    agent_kwargs={"prompt": self.prompt}
+                )
             
             logger.info("ChatService 初始化成功")
         except Exception as e:
@@ -167,12 +166,12 @@ class ChatService:
         self, messages: List[Dict[str, Any]]
     ) -> List[Dict[str, str]]:
         """
-        将数据库中的消息记录转换为 LangChain 格式。
+        将数据库中的消息记录转换为消息格式。
         """
         try:
             formatted = []
             for msg in messages:
-                role = "human" if msg.get("is_user") else "assistant"
+                role = "user" if msg.get("is_user") else "assistant"
                 content = msg.get("content", "").strip()
                 if content:  # 确保内容不为空
                     formatted.append({"role": role, "content": content})
@@ -552,10 +551,23 @@ class ChatService:
                 if docs:
                     query_input = self._construct_doc_query(query_input, docs)
             
-            response = await self.agent.ainvoke({
-                "input": query_input,
-                "chat_history": formatted_history
-            })
+            # 使用不同的生成方式
+            if settings.MODEL_PROVIDER == "openai":
+                response = await self.agent.ainvoke({
+                    "input": query_input,
+                    "chat_history": formatted_history
+                })
+            else:  # deepseek
+                messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}]
+                messages.extend(formatted_history)
+                messages.append({"role": "user", "content": query_input})
+                
+                completion = self.client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=messages,
+                    stream=False
+                )
+                response = completion.choices[0].message.content
             
             return self._extract_response(response)
             
