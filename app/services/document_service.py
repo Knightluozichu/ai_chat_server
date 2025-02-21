@@ -2,7 +2,7 @@ import logging
 import os
 from enum import Enum
 from typing import List
-from langchain.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class FileProcessingStatus(Enum):
     completed = "completed"
     error = "error"  # 将 failed 改为 error 以匹配数据库约束
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 import tempfile
 import httpx
