@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -253,160 +253,100 @@ class ChatService:
         reasoning_explanation = self._explain_reasoning_steps(steps)
         
         # 根据意图类型构造查询
-        intent_handlers = {
+        intent_processors = {
             # 项目招标信息生成
-            CoreIntentType.GENERATE_BID.value: lambda t: (
-                f"让我们按照以下步骤来生成招标信息：\n"
-                f"第一步，我们需要确定项目基本信息：\n"
-                f"- 项目背景和采购需求\n"
-                f"- 投标人资质要求\n"
-                f"第二步，让我们细化技术规范：\n"
-                f"- 技术规格指标\n"
-                f"- 评标标准设计\n"
-                f"最后，我们来规划时间节点：\n"
-                f"- 具体时间安排\n"
+            CoreIntentType.GENERATE_BID.value: lambda t: "\n".join((
+                "请生成一份标准的项目招标信息：",
+                "1. 项目基本信息",
+                "2. 技术要求说明",
+                "3. 资质要求说明", 
+                "4. 评标方法说明",
                 f"项目信息：{t}"
-            ),
+            )),
             # 投标文件评估
-            CoreIntentType.EVALUATE_BID.value: lambda t: (
-                f"请评估以下投标文件，从三个维度进行打分：\n"
-                f"1. 商务分析(30分)：商务条款合理性\n"
-                f"2. 技术评估(50分)：方案可行性、指标满足度\n"
-                f"3. 服务承诺(20分)：售后、培训等\n"
-                f"投标文件内容：{t}"
-            ),
+            CoreIntentType.EVALUATE_BID.value: lambda t: "\n".join((
+                "请评估以下投标文件：",
+                "1. 形式合规性",
+                "2. 技术响应度",
+                "3. 商务合理性",
+                "4. 风险提示",
+                f"文件内容：{t}"
+            )),
             # 采购流程咨询
-            CoreIntentType.PROCUREMENT_CONSULT.value: lambda t: (
-                f"请就以下采购问题提供专业咨询：\n"
-                f"1. 结合《政府采购法》相关规定\n"
-                f"2. 提供具体操作步骤\n"
-                f"3. 说明关键时间节点\n"
-                f"4. 指出潜在风险点\n"
-                f"咨询问题：{t}"
-            ),
+            CoreIntentType.PROCUREMENT_CONSULT.value: lambda t: "\n".join((
+                "请解答以下采购流程问题：",
+                "1. 流程说明",
+                "2. 注意事项",
+                "3. 相关规定",
+                "4. 最佳实践",
+                f"问题描述：{t}"
+            )),
             # 供应商资格审查
-            CoreIntentType.SUPPLIER_REVIEW.value: lambda t: (
-                f"请对以下供应商进行资格审查：\n"
-                f"1. 基础资质：营业执照、纳税记录等\n"
-                f"2. 专业资质：行业许可、认证等\n"
-                f"3. 信誉资质：履约评价、违法记录等\n"
+            CoreIntentType.SUPPLIER_REVIEW.value: lambda t: "\n".join((
+                "请对供应商资格进行审查：",
+                "1. 基本资质",
+                "2. 业务能力",
+                "3. 履约记录",
+                "4. 风险评估",
                 f"供应商信息：{t}"
-            ),
+            )),
             # 商品对比与选型
-            CoreIntentType.PRODUCT_COMPARE.value: lambda t: (
-                f"请对以下商品进行多维度对比分析：\n"
-                f"1. 性能指标(40%)\n"
-                f"2. 价格分析(30%)\n"
-                f"3. 服务体系(20%)\n"
-                f"4. 其他因素(10%)\n"
+            CoreIntentType.PRODUCT_COMPARE.value: lambda t: "\n".join((
+                "请对以下商品进行对比分析：",
+                "1. 功能对比(40%)",
+                "2. 价格分析(30%)",
+                "3. 质量评估(20%)",
+                "4. 其他因素(10%)",
                 f"商品信息：{t}"
-            ),
+            )),
             # 法规条款解读
-            CoreIntentType.LAW_INTERPRET.value: lambda t: (
-                f"请对以下法规条款进行专业解读：\n"
-                f"1. 条款原文解释\n"
-                f"2. 适用场景分析\n"
-                f"3. 实践案例参考\n"
-                f"4. 关联法规说明\n"
+            CoreIntentType.LAW_INTERPRET.value: lambda t: "\n".join((
+                "请对以下法规条款进行专业解读：",
+                "1. 条款原文解释",
+                "2. 适用场景分析", 
+                "3. 实践案例参考",
+                "4. 关联法规说明",
                 f"法规内容：{t}"
-            ),
+            )),
             # 风险预警
-            CoreIntentType.RISK_ALERT.value: lambda t: (
-                f"请对以下情况进行风险评估：\n"
-                f"1. 识别风险点\n"
-                f"2. 评估风险等级\n"
-                f"3. 提供防范建议\n"
-                f"4. 应急预案建议\n"
+            CoreIntentType.RISK_ALERT.value: lambda t: "\n".join((
+                "请对以下情况进行风险评估：",
+                "1. 识别风险点",
+                "2. 评估风险等级",
+                "3. 提供防范建议",
+                "4. 应急预案建议",
                 f"情况描述：{t}"
-            ),
-            # 成本测算
-            CoreIntentType.COST_CALCULATE.value: lambda t: (
-                f"请进行以下成本测算：\n"
-                f"1. 基准价计算\n"
-                f"2. 价格构成分析\n"
-                f"3. 成本压降空间\n"
-                f"4. 市场价格对比\n"
-                f"测算需求：{t}"
-            ),
-            # 文档模板生成
-            CoreIntentType.TEMPLATE_GENERATE.value: lambda t: (
-                f"请生成相关文档模板：\n"
-                f"1. 参考标准文本\n"
-                f"2. 突出关键条款\n"
-                f"3. 预留填充项\n"
-                f"4. 注意事项说明\n"
-                f"模板需求：{t}"
-            ),
-            # 数据验证
-            CoreIntentType.DATA_VERIFY.value: lambda t: (
-                f"请对以下数据进行验证：\n"
-                f"1. 数据真实性核查\n"
-                f"2. 有效期验证\n"
-                f"3. 一致性检查\n"
-                f"4. 异常值分析\n"
-                f"验证内容：{t}"
-            ),
-            # 流程追溯
-            CoreIntentType.PROCESS_TRACE.value: lambda t: (
-                f"请对以下流程进行追溯：\n"
-                f"1. 关键节点记录\n"
-                f"2. 修改历史查询\n"
-                f"3. 责任人确认\n"
-                f"4. 文档完整性\n"
-                f"追溯内容：{t}"
-            ),
-            # 应急处理
-            CoreIntentType.EMERGENCY_HANDLE.value: lambda t: (
-                f"请提供应急处理方案：\n"
-                f"1. 情况紧急程度评估\n"
-                f"2. 应对措施建议\n"
-                f"3. 相关方联系安排\n"
-                f"4. 后续预防建议\n"
-                f"紧急情况：{t}"
-            )
+            ))
         }
         
-        handler = intent_handlers.get(intent_result.core_intent, lambda t: t)
-        query = handler(text)
+        processor = intent_processors.get(intent_result.core_intent, lambda t: t)
+        query = processor(text)
         
         return query, reasoning_explanation
 
-    def _enhance_with_aux_intents(self, query: str, intent_result: IntentResult) -> str:
-        """根据辅助意图增强查询内容，增加可读性"""
+    def _enhance_with_aux_intents(self, query_tuple: Union[str, Tuple[str, str]], intent_result: IntentResult) -> str:
+        """
+        根据辅助意图增强查询内容，增加可读性
+        """
+        # 解包query_tuple
+        if isinstance(query_tuple, tuple):
+            query, reasoning = query_tuple
+        else:
+            query = query_tuple
+            reasoning = ""
+
+        # 辅助意图增强
         enhancements = []
-        transitions = []
+        transitions = ["此外，请注意：", "同时：", "另外："]
         
         if AuxIntentType.ENHANCED_SEARCH.value in intent_result.aux_intents:
-            transitions.append("为了确保信息的准确性和时效性：")
-            enhancements.extend([
-                "我们需要先搜索最新的市场数据",
-                "重点关注产品的实际表现和用户反馈",
-                "所有数据都会标注采集时间，确保参考价值"
-            ])
-        
+            enhancements.append("需要进行更深入的信息检索")
+            
         if AuxIntentType.UNCERTAINTY_DECLARE.value in intent_result.aux_intents:
-            transitions.append("考虑到信息的不确定性：")
-            enhancements.extend([
-                "我们会特别标注存在争议的信息",
-                "对于最近更新的政策，会提供额外说明",
-                "同时给出进一步核实的具体建议"
-            ])
-        
+            enhancements.append("如有不确定的信息请明确说明")
+            
         if AuxIntentType.DEEP_REASONING.value in intent_result.aux_intents:
-            transitions.append("为了让推理过程更透明：")
-            enhancements.extend([
-                "我们会详细展示每个决策的依据",
-                "对重要结论提供充分的论证",
-                "必要时引用相关法规或标准作为支持"
-            ])
-        
-        if intent_result.risk_level == "high":
-            transitions.append("由于存在较高风险：")
-            enhancements.extend([
-                "我们需要特别关注合规性问题",
-                "建议进行多维度的交叉验证",
-                "同时提供详细的风险防范建议"
-            ])
+            enhancements.append("需要详细的推理过程")
         
         if enhancements:
             enhancement_text = ""
@@ -540,7 +480,7 @@ class ChatService:
             # 1. 意图识别（根据settings决定是否使用）
             intent_result = None
             if settings.USE_INTENT_DETECTION:
-                intent_result = await intent_service.detect_intent(user_input)
+                intent_result = await intent_service.classify_intent(user_input)
                 
             # 2. 根据意图处理查询
             query_input = user_input
