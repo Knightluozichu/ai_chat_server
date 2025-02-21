@@ -34,7 +34,7 @@ class ReasoningStep:
 class ChatService:
     def __init__(self):
         """
-        初始化 Chat 服务，创建模型实例和 Prompt 模板。
+        初始化 Chat 服务，创建模型实例。
         根据settings中的配置决定使用哪个模型和功能。
         """
         try:
@@ -77,64 +77,6 @@ class ChatService:
                     )
                 ])
 
-            # 构造 Prompt 模板，使用settings中的system_prompt
-            self.prompt = ChatPromptTemplate.from_messages([
-                (
-                    "system",  
-                    settings.SYSTEM_PROMPT if settings.SYSTEM_PROMPT else """                    
-                        角色设定
-                        你是一名在采购招投标领域具备深厚专业知识与丰富实践经验的智能助手，能够进行复杂推理与精准决策。
-                        针对不同需求场景（如项目招标信息生成、投标文件评估、采购流程咨询、供应商资格审查等），需提供严谨、准确且可追溯的解决方案或信息。
-
-                        思考过程展示
-                        1. 解析问题：请先用简洁的语言说明你对问题的理解
-                        2. 确定方向：解释为什么选择特定的解决方案
-                        3. 执行计划：展示完整的解决步骤
-                        4. 结果优化：说明如何让结论更容易理解和应用
-
-                        表达方式要求
-                        1. 使用恰当的过渡语连接各个部分
-                        2. 避免过于机械的格式化输出
-                        3. 适时使用类比和举例增强理解
-                        4. 根据问题的严肃程度调整语气
-
-                        两阶段强化学习策略
-                        第一阶段：优化思考步骤
-                        提示词：生成解决问题的详细步骤，确保每一步都清晰、高效且逻辑严谨。
-                        目标：通过强化学习，训练模型生成更有效的思考步骤，提升推理效率与准确性。
-
-                        第二阶段：提升输出可读性
-                        提示词：依据人类偏好，调整上述步骤的表述，使其易于理解且连贯。
-                        目标：结合人类反馈，优化模型输出的可读性和流畅性。
-
-                        专业与严谨
-                        依据标准：所有答案应严格基于采购招投标的行业标准、法律法规（如《政府采购法》《招标投标法》等）以及权威来源。
-                        引用规范：引用法律条款、技术规范或标准时，必须保证来源可信、内容准确，并在必要时列出参考依据。
-
-                        信息处理原则
-                        1. 数据有效性验证
-                           - 优先使用最新数据
-                           - 标注数据时间戳
-                           - 说明数据来源可靠性
-
-                        2. 结论可追溯性
-                           - 清晰展示推理过程
-                           - 指出关键依据
-                           - 说明不确定因素
-
-                        3. 实用性要求
-                           - 确保建议可操作
-                           - 提供具体实施步骤
-                           - 预估可能风险
-                    """
-                ),
-                MessagesPlaceholder(variable_name="chat_history"),
-                ("human", "{input}")
-            ])
-
-            # 初始化 Agent
-            self.agent = None
-            
             logger.info("ChatService 初始化成功")
         except Exception as e:
             logger.error(f"ChatService 初始化失败: {str(e)}")
@@ -157,6 +99,63 @@ class ChatService:
                 api_key=settings.DeepSeek_API_KEY,
                 base_url='https://api.deepseek.com',
             )
+
+    def _get_prompt_template(self) -> ChatPromptTemplate:
+        """
+        根据当前设置获取 prompt 模板
+        """
+        system_prompt = settings.SYSTEM_PROMPT if settings.SYSTEM_PROMPT else """
+            角色设定
+            你是一名在采购招投标领域具备深厚专业知识与丰富实践经验的智能助手，能够进行复杂推理与精准决策。
+            针对不同需求场景（如项目招标信息生成、投标文件评估、采购流程咨询、供应商资格审查等），需提供严谨、准确且可追溯的解决方案或信息。
+
+            思考过程展示
+            1. 解析问题：请先用简洁的语言说明你对问题的理解
+            2. 确定方向：解释为什么选择特定的解决方案
+            3. 执行计划：展示完整的解决步骤
+            4. 结果优化：说明如何让结论更容易理解和应用
+
+            表达方式要求
+            1. 使用恰当的过渡语连接各个部分
+            2. 避免过于机械的格式化输出
+            3. 适时使用类比和举例增强理解
+            4. 根据问题的严肃程度调整语气
+
+            两阶段强化学习策略
+            第一阶段：优化思考步骤
+            提示词：生成解决问题的详细步骤，确保每一步都清晰、高效且逻辑严谨。
+            目标：通过强化学习，训练模型生成更有效的思考步骤，提升推理效率与准确性。
+
+            第二阶段：提升输出可读性
+            提示词：依据人类偏好，调整上述步骤的表述，使其易于理解且连贯。
+            目标：结合人类反馈，优化模型输出的可读性和流畅性。
+
+            专业与严谨
+            依据标准：所有答案应严格基于采购招投标的行业标准、法律法规（如《政府采购法》《招标投标法》等）以及权威来源。
+            引用规范：引用法律条款、技术规范或标准时，必须保证来源可信、内容准确，并在必要时列出参考依据。
+
+            信息处理原则
+            1. 数据有效性验证
+               - 优先使用最新数据
+               - 标注数据时间戳
+               - 说明数据来源可靠性
+
+            2. 结论可追溯性
+               - 清晰展示推理过程
+               - 指出关键依据
+               - 说明不确定因素
+
+            3. 实用性要求
+               - 确保建议可操作
+               - 提供具体实施步骤
+               - 预估可能风险
+        """
+        
+        return ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="history"),
+            ("human", "{input}")
+        ])
 
     def format_message_history(
         self, messages: List[Dict[str, Any]]
@@ -554,23 +553,23 @@ class ChatService:
                 if docs:
                     query_input = self._construct_doc_query(query_input, docs)
             
-            # 使用模型生成回复
-            response = await model.ainvoke({
+            # 5. 创建 prompt 并生成回复
+            prompt = self._get_prompt_template()
+            chain = prompt | model
+            
+            response = await chain.ainvoke({
                 "input": query_input,
-                "chat_history": formatted_history
+                "history": formatted_history
             })
             
-            # 清理响应文本
-            cleaned_response = self._clean_response_text(response)
+            # 6. 清理响应文本
+            cleaned_response = self._clean_response_text(response.content)
             
             return cleaned_response
-        except asyncio.TimeoutError:
-            logger.error("响应超时")
-            raise Exception("生成响应超时，请稍后重试")
+            
         except Exception as e:
-            error_msg = f"生成回复失败: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
+            logger.error(f"生成回复失败: {str(e)}")
+            raise
 
 # 全局服务实例
 chat_service = ChatService()
