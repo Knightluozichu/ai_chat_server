@@ -23,6 +23,7 @@ class IntentResult(BaseModel):
     risk_level: str
 
 class CoreIntentType(str, Enum):
+    CHAT_GENERAL = "通用闲聊"  # 新增通用闲聊类型
     GENERATE_BID = "项目招标信息生成"                
     EVALUATE_BID = "投标文件评估"                
     PROCUREMENT_CONSULT = "采购流程咨询"  
@@ -304,17 +305,43 @@ class IntentService:
         # 1. 领域特征提取
         features = self._extract_domain_features(text)
         
-        # 2. 规则匹配优先
+        try:
+            messages = [
+                {"role": "system", "content": """
+                请判断输入文本是否为与采购招投标无关的通用闲聊。
+                规则：
+                1. 天气、问候等日常对话为闲聊
+                2. 包含采购专业术语的为非闲聊
+                3. 只返回 "chat" 或 "procurement"
+                """},
+                {"role": "user", "content": text}
+            ]
+
+            response = self.oai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.1,
+                max_tokens=10
+            )
+
+            result = response.choices[0].message.content.strip().lower()
+            if result == "chat":
+                return CoreIntentType.CHAT_GENERAL
+            
+        except Exception as e:
+            logger.warning(f"闲聊检测异常: {str(e)}")
+        
+        # 3. 非闲聊情况下，执行原有的规则匹配逻辑
         if any(kw in text for kw in self.domain_terms.get("risk_keywords", [])):
             return CoreIntentType.RISK_ALERT
             
         # 3. OpenAI分类
         try:
+        
             messages = [
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": f"文本内容：{text}\n\n特征信息：{json.dumps(features, ensure_ascii=False)}"}
             ]
-            
             response = self.oai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
