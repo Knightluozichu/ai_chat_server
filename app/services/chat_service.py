@@ -540,7 +540,7 @@ class ChatService:
             # 1. 意图识别（根据settings决定是否使用）
             intent_result = None
             if settings.USE_INTENT_DETECTION:
-                intent_result = await intent_service.detect_intent(user_input)
+                intent_result = await intent_service.classify_intent(user_input)
                 
             # 2. 根据意图处理查询
             query_input = user_input
