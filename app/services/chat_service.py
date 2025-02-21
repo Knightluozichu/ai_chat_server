@@ -159,21 +159,17 @@ class ChatService:
 
     def format_message_history(
         self, messages: List[Dict[str, Any]]
-    ) -> List[Dict[str, str]]:
+    ) -> List[BaseMessage]:
         """
-        将数据库中的消息记录转换为消息格式。
+        将消息历史记录格式化为模型所需的格式
         """
-        try:
-            formatted = []
-            for msg in messages:
-                role = "user" if msg.get("is_user") else "assistant"
-                content = msg.get("content", "").strip()
-                if content:  # 确保内容不为空
-                    formatted.append({"role": role, "content": content})
-            return formatted
-        except Exception as e:
-            logger.error(f"格式化消息历史失败: {str(e)}")
-            return []
+        formatted_messages = []
+        for msg in messages:
+            if msg["is_user"]:
+                formatted_messages.append(HumanMessage(content=msg["content"]))
+            else:
+                formatted_messages.append(AIMessage(content=msg["content"]))
+        return formatted_messages
 
     def _build_reasoning_steps(self, text: str, intent_result: IntentResult) -> List[ReasoningStep]:
         """构建推理步骤"""
@@ -563,7 +559,14 @@ class ChatService:
             })
             
             # 6. 清理响应文本
-            cleaned_response = self._clean_response_text(response.content)
+            if isinstance(response, dict) and "content" in response:
+                content = response["content"]
+            elif hasattr(response, "content"):
+                content = response.content
+            else:
+                content = str(response)
+                
+            cleaned_response = self._clean_response_text(content)
             
             return cleaned_response
             
