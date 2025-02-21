@@ -4,6 +4,7 @@
 import json
 import logging
 import asyncio
+import re
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -513,6 +514,14 @@ class ChatService:
             logger.error(f"提取响应内容失败: {str(e)}")
             return str(response)
 
+    def _clean_response_text(self, text: str) -> str:
+        """
+        清理响应文本，去除多余的空行
+        """
+        # 将连续的多个空行替换为单个空行
+        cleaned = re.sub(r'\n\s*\n', '\n\n', text.strip())
+        return cleaned
+
     async def generate_response(
         self, 
         user_input: str, 
@@ -528,34 +537,33 @@ class ChatService:
             intent_result = None
             if settings.USE_INTENT_DETECTION:
                 intent_result = await intent_service.classify_intent(user_input)
+                
+            # 2. 根据意图处理查询
+            query_input = user_input
+            if intent_result and intent_result.core_intent:
+                query_input = self._process_core_intent(user_input, intent_result)
+                if intent_result.aux_intents:
+                    query_input = self._enhance_with_aux_intents(query_input, intent_result)
             
-            # 2. 获取相关文档（仅当有user_id且存在文档时）
-            docs = []
-            if user_id:
-                docs = await self._get_relevant_docs(user_input, user_id)
-            
-            # 3. 统一处理请求
+            # 3. 格式化历史消息
             formatted_history = self.format_message_history(message_history)
             
-            if intent_result:
-                query_input, reasoning = self._process_core_intent(user_input, intent_result)
-                if docs:
-                    query_input = self._construct_doc_query(query_input, docs)
-                query_input = self._enhance_with_aux_intents(query_input, intent_result)
-                query_input = f"{reasoning}\n{query_input}"
-            else:
-                query_input = user_input
+            # 4. 如果启用了网络搜索，获取相关文档
+            if settings.USE_WEB_SEARCH and user_id:
+                docs = await self._get_relevant_docs(query_input, user_id)
                 if docs:
                     query_input = self._construct_doc_query(query_input, docs)
             
-            # 统一使用 agent 处理请求
+            # 使用模型生成回复
             response = await model.ainvoke({
                 "input": query_input,
                 "chat_history": formatted_history
             })
             
-            return self._extract_response(response)
+            # 清理响应文本
+            cleaned_response = self._clean_response_text(response)
             
+            return cleaned_response
         except asyncio.TimeoutError:
             logger.error("响应超时")
             raise Exception("生成响应超时，请稍后重试")
