@@ -55,11 +55,12 @@ class Settings(BaseSettings):
         "http://kg.procurement-risk.com/graphql",
         description="风险知识图谱API地址"
     )
-    OCR_SERVICE_ENDPOINT: str = Field(
-        "https://ocr.procurement.com/v1",
-        description="OCR服务端点"
-    )
-    OCR_API_KEY: str = Field(description="OCR服务API密钥")
+    # OCR 相关配置（暂时注释掉，非必需功能）
+    # OCR_SERVICE_ENDPOINT: str = Field(
+    #     "https://ocr.procurement.com/v1",
+    #     description="OCR服务端点"
+    # )
+    # OCR_API_KEY: str = Field(description="OCR服务API密钥")
   
     class Config:
         env_file = ".env"
@@ -100,7 +101,7 @@ log_config_item("MODEL_NAME", settings.MODEL_NAME)
 log_config_item("MODEL_PROVIDER", settings.MODEL_PROVIDER)
 log_config_item("SERPAPI_API_KEY", settings.SERPAPI_API_KEY)
 log_config_item("SUPABASE_JWT_SECRET", settings.SUPABASE_JWT_SECRET)
-log_config_item("OCR_API_KEY", settings.OCR_API_KEY)
+# log_config_item("OCR_API_KEY", settings.OCR_API_KEY)  # 暂时注释掉OCR相关配置
 
 # 验证所有必需的配置是否已设置
 required_configs = {
