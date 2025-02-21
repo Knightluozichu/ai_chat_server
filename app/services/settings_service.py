@@ -39,7 +39,7 @@ class SettingsService:
             if update_data.use_intent_detection is not None:
                 self.settings.USE_INTENT_DETECTION = update_data.use_intent_detection
             # 打印更新后的设置
-            logger.info(f"更新后的设置: {self.settings.dict()}")
+            # logger.info(f"更新后的设置: {self.settings.dict()}")
             return {
                 "model_provider": self.settings.MODEL_PROVIDER,
                 "system_prompt": self.settings.SYSTEM_PROMPT,
