@@ -1,2 +1,0 @@
-id,user_id,name,size,type,url,processing_status,error_message,processed_at,created_at,updated_at,progress
-d9a6e245-5d82-479f-92a1-b3138a38bf73,8447d0a2-d505-47b6-bd50-51a5c97616e2,文件采购流程.pdf,73076,application/pdf,https://fmqreoeqzqdaqdtgqzkc.supabase.co/storage/v1/object/public/files/8447d0a2-d505-47b6-bd50-51a5c97616e2/bkyn7me21h.pdf,completed,,,2025-02-15 17:29:54.722055+00,2025-02-15 17:30:13.175036+00,25
